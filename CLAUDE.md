@@ -54,9 +54,11 @@ Philipp nutzt sie als App auf dem iPhone-Home-Bildschirm. UI-Sprache: Deutsch, p
 
 ### Hochladen (Push)
 - Hat die Sitzung Schreibzugriff auf `philippthomas643-cloud/kassensturz`: normal `git push`.
-- Sonst über Philipps Mac (Desktop-Verbindung, `device_bash`): Projekt liegt in `~/Claude/kassensturz`;
-  dort `gh auth login -h github.com -p https -w` starten und Philipp den Code auf github.com/login/device eingeben lassen,
-  dann `gh auth setup-git` und `git push`.
+- Sonst über Philipps Mac (Desktop-Verbindung, `device_bash`, Linux-VM): `gh` als Binary von den GitHub-Releases nach `$HOME/bin` holen,
+  Geräte-Login starten (`gh auth login -h github.com -p https -w` bzw. Device-Flow) und Philipp den Code auf github.com/login/device
+  eingeben lassen, dann `gh auth setup-git`. **Git nicht im verbundenen Ordner betreiben** (dort darf nichts gelöscht werden →
+  Git-Lock-Dateien bleiben hängen), sondern ins VM-Home klonen (`git clone https://github.com/philippthomas643-cloud/kassensturz.git`),
+  Änderungen per `git bundle` aus der Cloud übertragen, `git pull <bundle> main`, `git push`.
 
 ## Design
 - Schrift Geist (Zahlen immer tabellarisch), Karten mit 20px Radius, ruhige Flächen, keine harten Rahmen.
