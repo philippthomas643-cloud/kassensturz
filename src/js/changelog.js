@@ -4,6 +4,14 @@
    ====================================================================== */
 const CHANGELOG = [
   {
+    v: "1.3.0",
+    date: "2026-10-05",
+    items: [
+      "Ziele gehen jetzt auch ohne Datum: Beim Anlegen wählst du „Ohne Datum“ oder „Bis zu einem Datum“",
+      "Ein Zieldatum lässt sich beim Bearbeiten auch wieder entfernen",
+    ],
+  },
+  {
     v: "1.2.0",
     date: "2026-10-05",
     items: [

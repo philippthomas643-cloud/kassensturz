@@ -103,6 +103,32 @@ try {
   ok(/Erste 10k: 75 % geschafft/.test(toastText), "Meldung: " + (toastText || "keine"));
   await page.goto(BASE + "#ziele");
   ok(/75 % geschafft/.test(await page.textContent(".notify")), "Meldung steht im Verlauf der Meldungen");
+  // Sparziel ohne Datum, dann Datum setzen und wieder entfernen
+  await closeToasts(page);
+  await page.click('.page-actions [data-act="new-goal"]');
+  await page.waitForSelector("#gl-name");
+  await seg(page, "gl-kind", "savings");
+  ok(await page.isHidden("#gl-date-wrap"), "Neues Ziel: „Ohne Datum“ ist vorausgewählt, kein Datumsfeld");
+  await fill(page, "#gl-name", "Urlaub");
+  await fill(page, "#gl-target", "2.000");
+  await page.click("#gl-save");
+  await page.waitForTimeout(400);
+  const urlaub = '.goal:has-text("Urlaub")';
+  ok(!!(await page.$(urlaub)) && !/Bis /.test(await page.textContent(urlaub)) && /noch 2\.000/.test(await page.textContent(urlaub)), "Sparziel ohne Datum gespeichert");
+  await page.click(urlaub + ' [data-act="edit-goal"]');
+  await page.waitForSelector("#gl-name");
+  await seg(page, "gl-when", "date");
+  ok(!(await page.isHidden("#gl-date-wrap")) && /^\d{4}-\d{2}-\d{2}$/.test(await page.inputValue("#gl-date")), "„Bis zu einem Datum“ zeigt das Datumsfeld mit Vorschlag");
+  await page.fill("#gl-date", "2027-06-30");
+  await page.click("#gl-save");
+  await page.waitForTimeout(400);
+  ok(/Bis 30\. Juni 2027|Bis 30\.06\.2027/.test(await page.textContent(urlaub)), "Mit Datum: „Bis …“ und Betrag pro Monat (" + (await page.textContent(urlaub)).match(/Bis [^€]*/) + ")");
+  await page.click(urlaub + ' [data-act="edit-goal"]');
+  await page.waitForSelector("#gl-name");
+  await seg(page, "gl-when", "none");
+  await page.click("#gl-save");
+  await page.waitForTimeout(400);
+  ok(!/Bis /.test(await page.textContent(urlaub)), "Datum wieder entfernt");
 
   /* ---------------- 6. Fixkosten ---------------- */
   step("Fixkosten");

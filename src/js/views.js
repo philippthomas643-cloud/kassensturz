@@ -412,7 +412,7 @@ function goalStatusText(g, p) {
   const al = goalAlert(g.id);
   if (p.pct >= 1) return al && al.reachedAt ? "Erreicht am " + fmtDate(isoDate(new Date(al.reachedAt)), true) : "Ziel erreicht";
   if (g.kind === "networth") return "aus deinem Gesamtvermögen";
-  return validISO(g.deadline) ? "bis " + fmtDate(g.deadline, true) : "";
+  return validISO(g.deadline) ? "bis " + fmtDate(g.deadline, true) : "noch " + fmtAmt(Math.max(0, g.target - p.current), g.currency, { max: 5 });
 }
 function goalsCompact() {
   const goals = goalsList();

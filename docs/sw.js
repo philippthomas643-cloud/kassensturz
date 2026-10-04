@@ -1,7 +1,7 @@
 /* Kassensturz – Service Worker: macht die App offline-fähig und liefert Updates aus.
    Wird beim Bauen mit Version, Build-Kennung und Dateiliste befüllt (tools/build.mjs). */
-const VERSION = "1.2.0";
-const BUILD = "76cb0e82e7";
+const VERSION = "1.3.0";
+const BUILD = "e268fd733a";
 const CACHE = "kassensturz-" + BUILD;
 const ASSETS = ["./","manifest.webmanifest","fonts/geist-latin-ext-wght-normal.woff2","fonts/geist-latin-wght-normal.woff2","fonts/geist-mono-latin-wght-normal.woff2","icons/apple-touch-icon.png","icons/favicon-32.png","icons/favicon-64.png","icons/icon-192.png","icons/icon-512.png"];
 const OCR_CACHE = "ks-ocr-tesseract7";

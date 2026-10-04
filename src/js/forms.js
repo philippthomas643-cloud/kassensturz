@@ -593,6 +593,7 @@ function openGoalForm(id, kindPre) {
   const cur = g ? g.currency : "EUR";
   const linked = new Set(g ? g.accountIds || [] : []);
   const accs = accountsList(false);
+  const hasDate = !!(g && validISO(g.deadline));
   const body =
     segHtml("gl-kind", [["networth", "Vermögensziel"], ["savings", "Sparziel"]], kind) +
     '<p class="hint" id="gl-kind-hint" style="margin:-4px 0 0"></p>' +
@@ -605,7 +606,9 @@ function openGoalForm(id, kindPre) {
     '<span class="hint">Der Kontostand der Konten zählt komplett zum Ziel.</span></div>' +
     '<div style="margin-top:14px">' + fieldHtml("Zusätzlich gespart <span class=\"faint\">(optional)</span>", amountInput("gl-manual", g && +g.manual ? fmtNum(g.manual, 0, cur === "BTC" ? 8 : 2) : "", cur, 'placeholder="0"')) + "</div>" +
     "</div>" +
-    fieldHtml("Zieldatum <span class=\"faint\">(optional)</span>", '<input class="input" type="date" id="gl-date" value="' + esc(g && g.deadline ? g.deadline : "") + '">') +
+    '<div class="field"><span class="lbl">Zeitraum</span>' + segHtml("gl-when", [["none", "Ohne Datum"], ["date", "Bis zu einem Datum"]], hasDate ? "date" : "none") +
+    '<span class="hint" id="gl-when-hint"></span></div>' +
+    '<div id="gl-date-wrap"' + (hasDate ? "" : " hidden") + ">" + fieldHtml("Bis wann?", '<input class="input" type="date" id="gl-date" value="' + esc(hasDate ? g.deadline : "") + '">') + "</div>" +
     '<label class="check"><input type="checkbox" id="gl-notify"' + (!g || g.notify !== false ? " checked" : "") + "> <span>Meldungen zu diesem Ziel<br><span class=\"faint\" style=\"font-size:12.5px\">Bei 50 %, 75 %, 90 % und wenn es erreicht ist.</span></span></label>" +
     '<div class="preview" id="gl-prev">–</div>';
   openModal({
@@ -616,13 +619,18 @@ function openGoalForm(id, kindPre) {
       const upd = () => {
         const k = val(f, "seg-gl-kind");
         const c = val(f, "seg-gl-cur");
+        const withDate = val(f, "seg-gl-when") === "date";
+        const dateIn = f.querySelector("#gl-date");
+        if (withDate && !validISO(dateIn.value)) dateIn.value = addDays(addMonthKey(monthKey(isoDate()), 13) + "-01", -1); // Vorschlag: in einem Jahr
+        f.querySelector("#gl-date-wrap").hidden = !withDate;
+        f.querySelector("#gl-when-hint").textContent = withDate ? "Kassensturz rechnet aus, wie viel du dafür pro Monat brauchst." : "Kein Zeitdruck – du siehst einfach, wie weit du schon bist.";
         f.querySelector("#gl-savings").hidden = k === "networth";
         f.querySelector("#gl-kind-hint").textContent = k === "networth" ? "Misst dein gesamtes Vermögen über alle Konten, z. B. 50.000 € oder 1 BTC." : "Misst nur die Konten, die du verknüpfst, z. B. Tagesgeld für den Notgroschen.";
         for (const x of $$("[data-suffix-for]", f)) x.textContent = c === "EUR" ? "€" : c;
         const t = parseNum(val(f, "gl-target"), c);
         const ids = $$("[data-goal-acc]", f).filter((x) => x.checked).map((x) => x.dataset.goalAcc);
         const m = parseNum(val(f, "gl-manual"), c);
-        const p = goalProgress({ kind: k, accountIds: ids, manual: isFinite(m) ? m : 0, currency: c, target: isFinite(t) ? t : 0, deadline: val(f, "gl-date") });
+        const p = goalProgress({ kind: k, accountIds: ids, manual: isFinite(m) ? m : 0, currency: c, target: isFinite(t) ? t : 0, deadline: withDate ? val(f, "gl-date") : null });
         const pv = f.querySelector("#gl-prev");
         pv.innerHTML = "Aktueller Stand: <b>" + fmtAmt(p.current, c, { max: 5 }) + "</b>" + (isFinite(t) && t > 0 ? " · " + fmtPct(p.pct * 100, { dec: 0 }) + " von " + fmtAmt(t, c, { max: 5 }) : "") + (p.perMonth != null && isFinite(t) && p.pct < 1 ? " · " + fmtAmt(p.perMonth, c, { max: 5 }) + " pro Monat nötig" : "");
       };
@@ -638,12 +646,14 @@ function openGoalForm(id, kindPre) {
       const t = parseNum(val(f, "gl-target"), c);
       if (!name) { toast("Gib dem Ziel einen Namen.", { err: true }); return; }
       if (!isFinite(t) || t <= 0) { toast("Gib einen Zielbetrag größer als 0 ein.", { err: true }); return; }
+      const withDate = val(f, "seg-gl-when") === "date";
+      if (withDate && !validISO(val(f, "gl-date"))) { toast("Wähl ein Zieldatum – oder stell auf „Ohne Datum“.", { err: true }); return; }
       const m = parseNum(val(f, "gl-manual"), c);
       const doc = {
         kind: k, name, target: round(t, c === "BTC" ? 8 : 2), currency: c,
         accountIds: k === "networth" ? [] : $$("[data-goal-acc]", f).filter((x) => x.checked).map((x) => x.dataset.goalAcc),
         manual: k === "networth" ? 0 : isFinite(m) ? round(m, c === "BTC" ? 8 : 2) : 0,
-        deadline: validISO(val(f, "gl-date")) ? val(f, "gl-date") : null,
+        deadline: withDate ? val(f, "gl-date") : null,
         notify: f.querySelector("#gl-notify").checked,
         updatedAt: Date.now(),
       };
