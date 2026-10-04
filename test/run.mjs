@@ -1,6 +1,7 @@
 // Funktionstest der fertigen App (docs/): node test/run.mjs
 // Prüft Start, Konten, Buchungen, Ziele+Meldungen, Fixkosten, Diagramme, Speicher, Offline, Update, Backup, Kursquellen.
 import { launch, phoneContext, mockRates, startServer, BASE, watchErrors, root } from "./helpers.mjs";
+import { renderFixtures } from "./fixtures.mjs";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -250,7 +251,47 @@ try {
   ok((await ps.evaluate(() => Math.round(scrollY))) === 0 || yk === 0, "Seitenwechsel beginnt oben");
   await cs.close();
 
-  /* ---------------- 13. Kursquellen ---------------- */
+  /* ---------------- 13. Scannen: Screenshot und Kassenzettel (erfundene Testbilder) ---------------- */
+  step("Screenshot und Kassenzettel einlesen");
+  const fx = path.join(root, "test", ".fixtures");
+  await renderFixtures(browser, fx);
+  const cf = await phoneContext(browser);
+  await mockRates(cf);
+  const pf = await cf.newPage();
+  watchErrors(pf, errors);
+  await pf.goto(BASE);
+  await pf.click('[data-act="start-empty"]');
+  await pf.waitForSelector("#acc-name");
+  await fill(pf, "#acc-name", "Girokonto");
+  await fill(pf, "#acc-bal", "500");
+  await pf.click("#acc-save");
+  await pf.waitForSelector(".scan-btn");
+  await pf.setInputFiles("#scan-shot", [path.join(fx, "liste.png")]);
+  await pf.waitForSelector("#sc-save", { timeout: 120000 });
+  const rows = await pf.$$eval(".scan-row", (rs) => rs.map((r) => ({ m: r.querySelector(".scan-m").value, s: r.querySelector(".scan-sign").textContent, a: r.querySelector(".scan-a").value, c: r.querySelector(".scan-c").value })));
+  const by = (n) => rows.find((r) => r.m.includes(n)) || {};
+  ok(rows.length === 5, "5 Umsätze erkannt, abgelehnte Zahlung übersprungen (" + rows.map((r) => r.m).join(", ") + ")");
+  ok(by("Spotify").a === "11,99" && by("Spotify").s === "−" && by("Spotify").c === "Abos & Software", "Spotify −11,99 € · Abos & Software");
+  ok(by("Gehalt").s === "+" && by("Gehalt").a === "2.450,00", "Gehalt als Einnahme +2.450 €");
+  ok(/1\.204,56/.test(await pf.textContent(".scan-bal")), "Kontostand 1.204,56 € erkannt");
+  await pf.click("#sc-save");
+  await pf.waitForTimeout(700);
+  ok(/1\.204,56/.test(await heroValue(pf)), "Nach dem Übernehmen stimmt der Kontostand");
+  await pf.setInputFiles("#scan-shot", [path.join(fx, "liste.png")]);
+  await pf.waitForSelector("#sc-save", { timeout: 120000 });
+  ok((await pf.$$eval(".scan-ck", (cs) => cs.filter((c) => c.checked).length)) === 0, "Zweiter Import: alles als schon gebucht erkannt");
+  ok(/passt schon/.test(await pf.textContent("#sc-bal-hint")), "Zweiter Import: Kontostand passt schon");
+  await pf.click('[data-act="close-modal"]');
+  await pf.setInputFiles("#scan-receipt", [path.join(fx, "kassenzettel.jpg")]);
+  await pf.waitForSelector("#tx-save", { timeout: 120000 });
+  ok((await pf.inputValue("#tx-amt")) === "11,46" && (await pf.inputValue("#tx-note")) === "Lidl" && (await pf.inputValue("#tx-date")) === "2026-10-04", "Kassenzettel: Lidl · 11,46 € · 04.10.2026");
+  ok((await pf.inputValue("#tx-cat")) === "Lebensmittel", "Kassenzettel: Kategorie Lebensmittel");
+  await pf.click("#tx-save");
+  await pf.waitForTimeout(500);
+  ok(/1\.193,10/.test(await heroValue(pf)), "Kassenzettel gebucht → Kontostand 1.193,10 €");
+  await cf.close();
+
+  /* ---------------- 14. Kursquellen ---------------- */
   step("Kursquellen");
   const c2 = await phoneContext(browser);
   await mockRates(c2, "cryptocom-down");

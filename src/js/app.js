@@ -77,6 +77,8 @@ const ACTIONS = {
   "adjust-balance": (el) => openAdjustForm(el.dataset.id),
   "new-tx": (el) => { if (!accountsList().length) { openAccountForm(); toast("Leg zuerst ein Konto an – dann kannst du buchen."); return; } openTxForm({ acc: el.dataset.acc, prefill: el.dataset.kind ? { kind: el.dataset.kind } : undefined }); },
   "adjust-picker": () => openAdjustPicker(),
+  "scan-shot": () => { const i = $("#scan-shot"); i.value = ""; i.click(); },
+  "scan-receipt": () => { const i = $("#scan-receipt"); i.value = ""; i.click(); },
   "install-guide": () => openInstallGuide(),
   "install-app": () => installApp(),
   "dismiss-install": () => { setUiPref("installSnooze", String(Date.now() + 7 * 86400000)); renderMain(); },
@@ -160,6 +162,12 @@ document.addEventListener("input", (e) => {
 });
 document.addEventListener("change", (e) => {
   const t = e.target;
+  if (t.id === "scan-shot" || t.id === "scan-receipt") {
+    const files = Array.from(t.files || []);
+    t.value = ""; // dasselbe Bild nochmal wählen können
+    if (files.length) { if (t.id === "scan-shot") scanScreenshots(files); else scanReceipt(files[0]); }
+    return;
+  }
   if (t.id === "st-import" || t.id === "wl-import") {
     const file = t.files && t.files[0];
     if (file) importBackup(file);

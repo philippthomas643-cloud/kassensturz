@@ -679,3 +679,40 @@ table.data th { position: sticky; top: 0; background: var(--panel-2); font-weigh
 }
 .acc-row.clickable .row-actions { position: relative; z-index: 1; }
 .alloc-item .sw { align-self: start; margin-top: 6px; }
+
+/* ---------- Scannen ---------- */
+.quick .scan-btns { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.quick .scan-btn { flex-direction: row; justify-content: flex-start; align-items: center; gap: 10px; padding: 11px 12px; text-align: left; }
+.quick .scan-btn svg { width: 22px; height: 22px; flex: none; color: var(--eur); }
+.scan-btn > span { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.scan-btn b { font-size: 13.5px; font-weight: 620; }
+.scan-btn > span > span { font-size: 11.5px; color: var(--ink-3); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scan-prog { display: flex; flex-direction: column; gap: 12px; padding: 6px 0 10px; }
+.scan-prog .meter { height: 8px; }
+.scan-prog .meter > i { transition: width .3s ease; }
+.scan-list { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.scan-row {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr) 12px 96px; gap: 4px 8px; align-items: center;
+  grid-template-areas: "ck m m s a" ". d c c c" ". n n n n"; padding: 10px 0; border-bottom: 1px solid var(--line);
+}
+.scan-row .scan-ck { grid-area: ck; width: 20px; height: 20px; margin: 0; accent-color: var(--ink); }
+.scan-row .scan-m { grid-area: m; font-weight: 600; }
+.scan-row .scan-sign { grid-area: s; text-align: right; font-weight: 650; color: var(--ink-2); }
+.scan-row .scan-sign.pos, .scan-row .scan-a.pos { color: var(--pos); }
+.scan-row .scan-a { grid-area: a; text-align: right; font-weight: 650; font-variant-numeric: tabular-nums; }
+.scan-row .scan-d { grid-area: d; color: var(--ink-2); }
+.scan-row .scan-c { grid-area: c; color: var(--ink-2); }
+.scan-row .scan-note { grid-area: n; font-size: 12px; color: var(--ink-3); padding-left: 6px; }
+.scan-row .scan-note:empty { display: none; }
+.scan-row.dup { opacity: .55; }
+.scan-row.dup .scan-note { color: var(--warn); }
+.scan-in { width: 100%; min-width: 0; height: 36px; padding: 0 8px; border: 1px solid transparent; border-radius: 9px; background: var(--panel-2); color: var(--ink); font-size: 16px; }
+.scan-in:focus { outline: none; border-color: var(--focus); background: var(--panel); }
+.scan-in.scan-d, .scan-in.scan-c { background: transparent; font-size: 16px; height: 32px; }
+.scan-in.scan-d:focus, .scan-in.scan-c:focus { background: var(--panel-2); }
+.scan-bal { padding: 12px 14px; border-radius: 12px; background: var(--panel-2); }
+.receipt-head { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; align-items: center; padding: 10px; border-radius: 14px; background: var(--panel-2); }
+.receipt-head img { width: 72px; height: 96px; object-fit: cover; border-radius: 9px; background: var(--line); }
+.receipt-head b { display: block; font-size: 15px; }
+.receipt-head span { font-size: 13px; color: var(--ink-2); }
+.receipt-head:not(:has(img)) { grid-template-columns: minmax(0, 1fr); }

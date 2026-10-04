@@ -4,6 +4,16 @@
    ====================================================================== */
 const CHANGELOG = [
   {
+    v: "1.1.0",
+    date: "2026-10-05",
+    items: [
+      "Neu: Screenshots aus deiner Banking-App einlesen – Umsätze, Kontostand und geplante Zahlungen werden erkannt und nach kurzer Prüfung gebucht",
+      "Neu: Kassenzettel fotografieren – Geschäft, Datum und Summe werden erkannt, du wählst nur noch das Konto",
+      "Doppelte Umsätze werden erkannt, abgelehnte Zahlungen übersprungen, wiederkehrende Zahlungen als Fixkosten vorgeschlagen",
+      "Die Texterkennung läuft auf deinem Gerät – Bilder verlassen dein iPhone nicht",
+    ],
+  },
+  {
     v: "1.0.1",
     date: "2026-10-04",
     items: [

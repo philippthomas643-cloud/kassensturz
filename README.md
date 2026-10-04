@@ -19,6 +19,7 @@ Als App auf dem iPhone, läuft offline, deine Daten bleiben auf deinem Gerät.</
 - **Buchungen**: Ausgaben, Einnahmen, Umbuchungen (auch Euro → BTC), Kontostand-Korrekturen, Suche und Filter
 - **Fixkosten** mit Fälligkeiten und Ein-Tipp-Buchung, **Budgets** pro Kategorie, **Vermögens- und Sparziele**
 - **Meldungen** in der App bei 50, 75, 90 und 100 %, Wochenrückblick und Kursrutsch-Warnung
+- **Scannen:** Screenshots aus der Banking-App (z. B. Revolut) einlesen – Umsätze, Kontostand und geplante Zahlungen werden erkannt; **Kassenzettel** fotografieren – Geschäft, Datum und Summe werden übernommen. Die Texterkennung läuft auf dem Gerät.
 - **Backup** als Datei über das Teilen-Menü (z. B. in iCloud Drive), CSV-Export der Buchungen
 - Hell- und Dunkelmodus, läuft offline, aktualisiert sich selbst
 

@@ -3,3 +3,4 @@ test/shots/
 test/backup-test.json
 .DS_Store
 *.log
+test/.fixtures/

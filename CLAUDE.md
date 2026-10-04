@@ -22,6 +22,11 @@ Philipp nutzt sie als App auf dem iPhone-Home-Bildschirm. UI-Sprache: Deutsch, p
   - `checks.js` – Meldungen in der App (Ziel erreicht, 50/75/90 %, Wochenrückblick, Kursrutsch), Zustand in `meta/alerts`
   - `demo.js` – Beispieldaten relativ zum heutigen Datum (`demo: true`)
   - `changelog.js` – „Was ist neu“-Einträge (neuester oben)
+  - `scanparse.js` – Auswertung erkannter Texte: `parseScreenshot` (Banking-App: Umsatzliste, Startseite, Mitteilungen; Revolut-erprobt),
+    `parseReceipt` (Kassenzettel), `guessCategory`. Ohne Abhängigkeiten, in Node testbar (exportiert `module.exports`).
+  - `scan.js` – Scannen: Bild vorbereiten (Graustufen, Dunkelmodus umkehren, Kontrast), Texterkennung mit tesseract.js
+    (`docs/ocr/`, wird erst beim ersten Scannen geladen, danach offline im Cache `ks-ocr-…`), Prüfliste, Kontostand-Abgleich,
+    Duplikatschutz (`importKey` an der Buchung), Fixkosten-Vorschläge; Kassenzettel öffnen das normale Buchungsformular vorausgefüllt
   - `views.js` – alle Seiten als HTML-Strings (`VIEWS.uebersicht` …), Banner, Willkommen
   - `charts.js` – SVG-Diagramme: Vermögensverlauf (`drawNetWorthChart`) und Aufteilung/Donut (`allocHtml`)
   - `forms.js` – Dialoge/Formulare, Einstellungen, Installationsanleitung, Backup/Import, Löschen
@@ -66,6 +71,10 @@ Philipp nutzt sie als App auf dem iPhone-Home-Bildschirm. UI-Sprache: Deutsch, p
 - Hell/Dunkel über Tokens in `:root` (+ `data-theme` für die manuelle Wahl in den Einstellungen).
 - Handy zuerst: Tab-Leiste unten, Plus-Knopf, Dialoge als Bottom-Sheet; Desktop: Seitenleiste.
 - Übersicht: Vermögenskarte mit Umschalter **Verlauf** (Linie) ↔ **Aufteilung** (Donut nach Assets oder Konten).
+
+## Scannen – Datenschutz
+- **Echte Screenshots oder Kassenzettel von Philipp nie ins Repo** (öffentlich!). Tests nutzen nur erfundene Bilder aus `test/fixtures.mjs`.
+- Die Texterkennung läuft auf dem Gerät; Bilder werden nicht gespeichert und nicht hochgeladen.
 
 ## Stolperfallen
 - iOS: Safari und die installierte App haben **getrennte Speicher**. Push-Nachrichten gibt es nicht (kein Server) – Meldungen erscheinen in der App.

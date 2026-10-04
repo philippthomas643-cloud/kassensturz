@@ -4,6 +4,7 @@ const VERSION = "__VERSION__";
 const BUILD = "__BUILD__";
 const CACHE = "kassensturz-" + BUILD;
 const ASSETS = __ASSETS__;
+const OCR_CACHE = "ks-ocr-tesseract7";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS.map((u) => new Request(u, { cache: "reload" })))));
@@ -12,7 +13,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter((k) => k.startsWith("kassensturz-") && k !== CACHE).map((k) => caches.delete(k)));
+    await Promise.all(keys.filter((k) => (k.startsWith("kassensturz-") && k !== CACHE) || (k.startsWith("ks-ocr-") && k !== OCR_CACHE)).map((k) => caches.delete(k)));
     await self.clients.claim();
   })());
 });
@@ -28,6 +29,18 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // Kurs-Abfragen gehen direkt ins Netz
+  // Texterkennung (groß): erst bei Bedarf laden, dann dauerhaft offline vorhalten – unabhängig von App-Updates
+  if (url.pathname.includes("/ocr/")) {
+    event.respondWith((async () => {
+      const cache = await caches.open(OCR_CACHE);
+      const hit = await cache.match(req, { ignoreSearch: true });
+      if (hit) return hit;
+      const res = await fetch(req);
+      if (res.ok) cache.put(req, res.clone());
+      return res;
+    })());
+    return;
+  }
   if (req.mode === "navigate") {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE);

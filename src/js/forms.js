@@ -292,9 +292,12 @@ function openTxForm(o = {}) {
   const amt0 = t ? fmtNum(Math.abs(t.amount), 0, cur0 === "BTC" ? 8 : 6) : pre.amount != null ? fmtNum(pre.amount, 0, cur0 === "BTC" ? 8 : 6) : "";
   const toAmt0 = t && t.kind === "transfer" ? fmtNum(Math.abs(t.toAmount), 0, accCur(toId) === "BTC" ? 8 : 6) : "";
   const fixedId = t ? t.fixedId : pre.fixedId;
+  const rc = o.receipt || null;
   const body =
+    (rc ? '<div class="receipt-head">' + (rc.thumb ? '<img src="' + rc.thumb + '" alt="Kassenzettel">' : "") + "<div><b>" + (rc.found && rc.found.total != null ? "Kassenzettel erkannt" : "Summe nicht erkannt") + "</b><span>" +
+      (rc.found && rc.found.total != null ? "Prüf Betrag, Geschäft und Datum – dann wähl das Konto, von dem bezahlt wurde." : "Trag den Betrag ein und wähl das Konto, von dem bezahlt wurde.") + "</span></div></div>" : "") +
     segHtml("tx-kind", [["expense", "Ausgabe"], ["income", "Einnahme"], ["transfer", "Umbuchung"]], kind, !!fixedId) +
-    fieldHtml("Betrag", amountInput("tx-amt", amt0, cur0, 'placeholder="0,00"' + (o.id ? "" : " autofocus")), "", "tx-amt-hint") +
+    fieldHtml("Betrag", amountInput("tx-amt", amt0, cur0, 'placeholder="0,00"' + (o.id || (rc && amt0) ? "" : " autofocus")), "", "tx-amt-hint") +
     '<div class="grid2" id="tx-acc-row">' +
     fieldHtml('<span id="tx-acc-lbl">' + (kind === "transfer" ? "Von Konto" : "Konto") + "</span>", '<select class="select" id="tx-acc">' + accountOptions(accId) + "</select>") +
     '<div id="tx-to-wrap"' + (kind === "transfer" ? "" : " hidden") + ">" + fieldHtml("Auf Konto", '<select class="select" id="tx-to">' + accountOptions(toId) + "</select>") + "</div>" +
@@ -306,7 +309,7 @@ function openTxForm(o = {}) {
     (fixedId ? '<div class="preview">' + icon("repeat", "sm") + " Gehört zu Fixkosten „" + esc((S.data.fixed.get(fixedId) || {}).name || "") + "“" + (pre.due || (t && t.period) ? ", fällig " + fmtDate(pre.due || t.period, true) : "") + "</div>" : "") +
     datalist("dl-cat", allCategories(kind === "income" ? "income" : "expense"));
   openModal({
-    title: t ? "Buchung bearbeiten" : fixedId ? (kind === "income" ? "Einnahme buchen" : "Fixkosten buchen") : "Neue Buchung",
+    title: t ? "Buchung bearbeiten" : rc ? "Kassenzettel buchen" : fixedId ? (kind === "income" ? "Einnahme buchen" : "Fixkosten buchen") : "Neue Buchung",
     body,
     foot: (t ? '<button class="btn btn-ghost btn-danger spacer" type="button" data-act="delete-tx" data-id="' + esc(t.id) + '">' + icon("trash", "sm") + "Löschen</button>" : "") +
       '<button class="btn" type="button" data-act="close-modal">Abbrechen</button><button class="btn btn-primary" type="submit" id="tx-save">' + (t ? "Speichern" : "Buchen") + "</button>",
@@ -381,8 +384,10 @@ function openTxForm(o = {}) {
         toast("Buchung gespeichert");
       } else {
         doc.createdAt = Date.now();
+        if (rc) doc.source = "receipt";
         const id = fixedId && pre.due ? fixedTxId(fixedId, pre.due) : newId("tx");
         await dbWrite("tx", id, "set", doc);
+        if (rc) dbWrite("meta", "app", "update", { lastReceiptAcc: acc }).catch(() => {});
         closeModal();
         toast(k === "transfer" ? "Umbuchung gespeichert" : k === "income" ? "Einnahme gebucht" : "Ausgabe gebucht");
       }

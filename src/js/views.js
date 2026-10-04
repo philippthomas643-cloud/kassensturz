@@ -431,7 +431,12 @@ function heroGoalHtml() {
 function quickActionsHtml() {
   const b = (act, kind, ic, label) => '<button type="button" data-act="' + act + '"' + (kind ? ' data-kind="' + kind + '"' : "") + '><span class="qi">' + icon(ic) + '</span><span class="ql">' + label + "</span></button>";
   return '<div class="quick hide-desk o2" role="group" aria-label="Schnell erfassen">' +
-    b("new-tx", "expense", "down", "Ausgabe") + b("new-tx", "income", "up", "Einnahme") + b("new-tx", "transfer", "swap", "Umbuchung") + b("adjust-picker", "", "adjust", "Kontostand") + "</div>";
+    b("new-tx", "expense", "down", "Ausgabe") + b("new-tx", "income", "up", "Einnahme") + b("new-tx", "transfer", "swap", "Umbuchung") + b("adjust-picker", "", "adjust", "Kontostand") +
+    '<div class="scan-btns">' + scanButtonsHtml() + "</div></div>";
+}
+function scanButtonsHtml() {
+  return '<button type="button" class="scan-btn" data-act="scan-receipt">' + icon("camera") + '<span><b>Kassenzettel</b><span>fotografieren</span></span></button>' +
+    '<button type="button" class="scan-btn" data-act="scan-shot">' + icon("image") + '<span><b>Screenshot</b><span>aus der Banking-App</span></span></button>';
 }
 function budgetCompact() {
   const ym = monthKey(isoDate());
@@ -567,7 +572,7 @@ VIEWS.buchungen = function () {
     if (t.kind === "income") inc += txEUR(t);
     else if (t.kind === "expense") exp += txEUR(t);
   }
-  const head = pageHead("Buchungen", "Einnahmen, Ausgaben und Umbuchungen – jede Buchung ändert den Kontostand", '<button class="btn btn-primary hide-phone" type="button" data-act="new-tx">' + icon("plus") + "Buchung erfassen</button>");
+  const head = pageHead("Buchungen", "Einnahmen, Ausgaben und Umbuchungen – jede Buchung ändert den Kontostand", '<button class="btn" type="button" data-act="scan-receipt">' + icon("camera", "sm") + 'Kassenzettel</button><button class="btn" type="button" data-act="scan-shot">' + icon("image", "sm") + 'Screenshot</button><button class="btn btn-primary hide-phone" type="button" data-act="new-tx">' + icon("plus") + "Buchung erfassen</button>");
   const monthCtl = f.month === "all"
     ? '<button class="btn btn-sm" type="button" data-act="tx-month" data-v="' + monthKey(isoDate()) + '">Nur ' + monthLabel(monthKey(isoDate())) + "</button>"
     : '<div class="month-nav"><button class="icon-btn sm" type="button" data-act="tx-month-step" data-v="-1" aria-label="Vorheriger Monat">' + icon("left", "sm") + '</button><span class="lbl">' + monthLabel(f.month) + '</span><button class="icon-btn sm" type="button" data-act="tx-month-step" data-v="1" aria-label="Nächster Monat">' + icon("right", "sm") + "</button></div>" +

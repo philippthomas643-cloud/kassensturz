@@ -1,6 +1,6 @@
 {
   "name": "kassensturz",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "private": true,
   "description": "Kassensturz – Finanz-App für EUR, USDT und BTC. Läuft offline als App auf dem iPhone, Daten bleiben auf dem Gerät.",
   "type": "module",

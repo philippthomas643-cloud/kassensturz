@@ -15,7 +15,7 @@ const VERSION = pkg.version;
 const DATE = (read(src("js", "changelog.js")).match(/date:\s*"(\d{4}-\d{2}-\d{2})"/) || [])[1] || new Date().toISOString().slice(0, 10);
 
 // Reihenfolge ist wichtig: alles teilt sich einen Gültigkeitsbereich
-const JS_ORDER = ["core", "store", "rates", "checks", "demo", "changelog", "views", "charts", "forms", "pwa", "app"];
+const JS_ORDER = ["core", "store", "rates", "checks", "demo", "changelog", "scanparse", "scan", "views", "charts", "forms", "pwa", "app"];
 const jsRaw = "(() => {\n" + JS_ORDER.map((n) => "/* ===== " + n + ".js ===== */\n" + read(src("js", n + ".js"))).join("\n") + "\n})();\n";
 const css = read(src("styles.css"));
 const body = read(src("body.html"));
@@ -56,7 +56,7 @@ for (const f of assetFiles) {
   fs.copyFileSync(src("assets", f), out(f));
 }
 fs.copyFileSync(src("manifest.webmanifest"), out("manifest.webmanifest"));
-const precache = ["./", "manifest.webmanifest"].concat(assetFiles.filter((f) => !/LICENSE|\.txt$|icon-1024\.png$/.test(f)));
+const precache = ["./", "manifest.webmanifest"].concat(assetFiles.filter((f) => !/LICENSE|\.txt$|icon-1024\.png$|^ocr\//.test(f)));
 fs.writeFileSync(out("sw.js"), read(src("sw.js")).replaceAll("__VERSION__", VERSION).replaceAll("__BUILD__", BUILD).replace("__ASSETS__", JSON.stringify(precache)));
 fs.writeFileSync(out("version.json"), JSON.stringify({ version: VERSION, build: BUILD, date: DATE }, null, 2) + "\n");
 fs.writeFileSync(out(".nojekyll"), "");

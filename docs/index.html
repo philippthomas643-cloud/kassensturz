@@ -707,6 +707,43 @@ table.data th { position: sticky; top: 0; background: var(--panel-2); font-weigh
 .acc-row.clickable .row-actions { position: relative; z-index: 1; }
 .alloc-item .sw { align-self: start; margin-top: 6px; }
 
+/* ---------- Scannen ---------- */
+.quick .scan-btns { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.quick .scan-btn { flex-direction: row; justify-content: flex-start; align-items: center; gap: 10px; padding: 11px 12px; text-align: left; }
+.quick .scan-btn svg { width: 22px; height: 22px; flex: none; color: var(--eur); }
+.scan-btn > span { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.scan-btn b { font-size: 13.5px; font-weight: 620; }
+.scan-btn > span > span { font-size: 11.5px; color: var(--ink-3); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scan-prog { display: flex; flex-direction: column; gap: 12px; padding: 6px 0 10px; }
+.scan-prog .meter { height: 8px; }
+.scan-prog .meter > i { transition: width .3s ease; }
+.scan-list { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.scan-row {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr) 12px 96px; gap: 4px 8px; align-items: center;
+  grid-template-areas: "ck m m s a" ". d c c c" ". n n n n"; padding: 10px 0; border-bottom: 1px solid var(--line);
+}
+.scan-row .scan-ck { grid-area: ck; width: 20px; height: 20px; margin: 0; accent-color: var(--ink); }
+.scan-row .scan-m { grid-area: m; font-weight: 600; }
+.scan-row .scan-sign { grid-area: s; text-align: right; font-weight: 650; color: var(--ink-2); }
+.scan-row .scan-sign.pos, .scan-row .scan-a.pos { color: var(--pos); }
+.scan-row .scan-a { grid-area: a; text-align: right; font-weight: 650; font-variant-numeric: tabular-nums; }
+.scan-row .scan-d { grid-area: d; color: var(--ink-2); }
+.scan-row .scan-c { grid-area: c; color: var(--ink-2); }
+.scan-row .scan-note { grid-area: n; font-size: 12px; color: var(--ink-3); padding-left: 6px; }
+.scan-row .scan-note:empty { display: none; }
+.scan-row.dup { opacity: .55; }
+.scan-row.dup .scan-note { color: var(--warn); }
+.scan-in { width: 100%; min-width: 0; height: 36px; padding: 0 8px; border: 1px solid transparent; border-radius: 9px; background: var(--panel-2); color: var(--ink); font-size: 16px; }
+.scan-in:focus { outline: none; border-color: var(--focus); background: var(--panel); }
+.scan-in.scan-d, .scan-in.scan-c { background: transparent; font-size: 16px; height: 32px; }
+.scan-in.scan-d:focus, .scan-in.scan-c:focus { background: var(--panel-2); }
+.scan-bal { padding: 12px 14px; border-radius: 12px; background: var(--panel-2); }
+.receipt-head { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; align-items: center; padding: 10px; border-radius: 14px; background: var(--panel-2); }
+.receipt-head img { width: 72px; height: 96px; object-fit: cover; border-radius: 9px; background: var(--line); }
+.receipt-head b { display: block; font-size: 15px; }
+.receipt-head span { font-size: 13px; color: var(--ink-2); }
+.receipt-head:not(:has(img)) { grid-template-columns: minmax(0, 1fr); }
+
 </style>
 </head>
 <body>
@@ -739,6 +776,8 @@ table.data th { position: sticky; top: 0; background: var(--panel-2); font-weigh
   <nav class="tabbar" id="nav-tab" aria-label="Navigation"></nav>
   <button class="fab" type="button" data-act="new-tx" aria-label="Neue Buchung" id="fab"></button>
 </div>
+<input type="file" id="scan-shot" accept="image/*" multiple hidden>
+<input type="file" id="scan-receipt" accept="image/*" capture="environment" hidden>
 <div id="modal-host"></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <noscript><p style="padding:24px;font:16px system-ui">Kassensturz braucht JavaScript.</p></noscript>
@@ -755,7 +794,7 @@ table.data th { position: sticky; top: 0; background: var(--panel-2); font-weigh
    ====================================================================== */
 
 /* ---------- App-Version (wird beim Bauen eingesetzt) ---------- */
-const APP = { version: "1.0.1", build: "8ecae2b2b7", date: "2026-10-04" };
+const APP = { version: "1.1.0", build: "f7f29d99a6", date: "2026-10-05" };
 
 /* ---------- Konstanten ---------- */
 const CURS = ["EUR", "USDT", "BTC"];
@@ -832,6 +871,9 @@ const ICONS = {
   chart: '<path d="M4 19.5h16"/><path d="m5 15.5 4.5-5 3.5 3 6-7"/>',
   donut: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.8"/><path d="M12 3.5v4.7M19.8 15.4l-4.2-1.8"/>',
   wifi: '<path d="M2.5 9a14 14 0 0 1 19 0M5.8 12.4a9.3 9.3 0 0 1 12.4 0M9 15.8a4.6 4.6 0 0 1 6 0"/><circle cx="12" cy="19" r=".9"/>',
+  camera: '<path d="M4 8.6A2.6 2.6 0 0 1 6.6 6h1.6l1.5-2.1h4.6L15.8 6h1.6A2.6 2.6 0 0 1 20 8.6v8.8a2.6 2.6 0 0 1-2.6 2.6H6.6A2.6 2.6 0 0 1 4 17.4Z"/><circle cx="12" cy="12.6" r="3.5"/>',
+  image: '<rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="9.6" r="1.6"/><path d="m4.2 17.2 4.8-4.7 3.8 3.6 2.6-2.4 4.4 3.9"/>',
+  receipt: '<path d="M6 3.5h12v17l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3Z"/><path d="M9 8h6M9 11.5h6M9 15h3.5"/>',
   shield: '<path d="M12 3.5 5 6.3v5.2c0 4.3 3 7.8 7 9 4-1.2 7-4.7 7-9V6.3Z"/><path d="m9 12 2.2 2.2L15.5 10"/>',
 };
 function icon(name, cls = "") {
@@ -1870,6 +1912,16 @@ async function loadDemo() {
    ====================================================================== */
 const CHANGELOG = [
   {
+    v: "1.1.0",
+    date: "2026-10-05",
+    items: [
+      "Neu: Screenshots aus deiner Banking-App einlesen – Umsätze, Kontostand und geplante Zahlungen werden erkannt und nach kurzer Prüfung gebucht",
+      "Neu: Kassenzettel fotografieren – Geschäft, Datum und Summe werden erkannt, du wählst nur noch das Konto",
+      "Doppelte Umsätze werden erkannt, abgelehnte Zahlungen übersprungen, wiederkehrende Zahlungen als Fixkosten vorgeschlagen",
+      "Die Texterkennung läuft auf deinem Gerät – Bilder verlassen dein iPhone nicht",
+    ],
+  },
+  {
     v: "1.0.1",
     date: "2026-10-04",
     items: [
@@ -1890,6 +1942,717 @@ const CHANGELOG = [
     ],
   },
 ];
+
+/* ===== scanparse.js ===== */
+/* ======================================================================
+   Auswertung erkannter Texte (OCR) – ohne Abhängigkeiten, auch in Node testbar.
+   Eingabe: Zeilen von Tesseract { text, bbox:{x0,y0,x1,y1}, words:[{text,bbox}] }
+   - parseScreenshot: Banking-App-Screenshots (Umsatzliste, Startseite, Mitteilungen)
+   - parseReceipt:    Kassenzettel (Geschäft, Datum, Summe)
+   ====================================================================== */
+const SCANPARSE = (() => {
+  const MONTH = { jan: 1, januar: 1, january: 1, feb: 2, februar: 2, february: 2, mär: 3, mar: 3, märz: 3, maerz: 3, march: 3, apr: 4, april: 4, mai: 5, may: 5, jun: 6, juni: 6, june: 6, jul: 7, juli: 7, july: 7, aug: 8, august: 8, sep: 9, sept: 9, september: 9, okt: 10, oct: 10, oktober: 10, october: 10, nov: 11, november: 11, dez: 12, dec: 12, dezember: 12, december: 12 };
+  const WDAY = { so: 0, sun: 0, sonntag: 0, sunday: 0, mo: 1, mon: 1, montag: 1, monday: 1, di: 2, tue: 2, dienstag: 2, tuesday: 2, mi: 3, wed: 3, mittwoch: 3, wednesday: 3, do: 4, thu: 4, donnerstag: 4, thursday: 4, fr: 5, fri: 5, freitag: 5, friday: 5, sa: 6, sat: 6, samstag: 6, saturday: 6 };
+  const DECLINED = /unzureichend|abgelehnt|fehlgeschlagen|storniert|rückgängig|zurückgebucht|declined|insufficient|failed|reverted|cancell?ed|reversed/i;
+  const SCHEDULED = /anstehend|geplant|fällig|scheduled|upcoming|due (today|tomorrow)/i;
+  const pad = (n) => String(n).padStart(2, "0");
+  const iso = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  const dayOnly = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const addD = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+
+  function resolveDate(today, day, month, year) {
+    if (!(day >= 1 && day <= 31 && month >= 1 && month <= 12)) return null;
+    let y = year ? (year < 100 ? 2000 + year : year) : today.getFullYear();
+    let d = new Date(y, month - 1, day);
+    if (d.getMonth() !== month - 1) return null;
+    if (!year && d > today) d = new Date(y - 1, month - 1, day);
+    return d;
+  }
+  /** Sucht Datum und Uhrzeit in einem Text. */
+  function findDate(s, today) {
+    const t = String(s);
+    let date = null, m;
+    if (/\b(heute|today|jetzt|now)\b/i.test(t)) date = today;
+    else if (/\b(vorgestern)\b/i.test(t)) date = addD(today, -2);
+    else if (/\b(gestern|yesterday)\b/i.test(t)) date = addD(today, -1);
+    if (!date && (m = t.match(/\b(\d{4})-(\d{2})-(\d{2})\b/))) date = resolveDate(today, +m[3], +m[2], +m[1]);
+    if (!date && (m = t.match(/\b(\d{1,2})[./](\d{1,2})[./](\d{2,4})\b/))) date = resolveDate(today, +m[1], +m[2], +m[3]);
+    if (!date && (m = t.match(/\b(\d{1,2})\.?\s+([A-Za-zÄÖÜäöü]{3,10})\.?(?:,?\s+(\d{4}))?/))) {
+      const mo = MONTH[m[2].toLowerCase()];
+      if (mo) date = resolveDate(today, +m[1], mo, m[3] ? +m[3] : 0);
+    }
+    if (!date && (m = t.match(/\b([A-Za-z]{3,9})\.?\s+(\d{1,2})(?:,?\s+(\d{4}))?\b/))) {
+      const mo = MONTH[m[1].toLowerCase()];
+      if (mo) date = resolveDate(today, +m[2], mo, m[3] ? +m[3] : 0);
+    }
+    const tm = t.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+    if (!date && tm && (m = t.match(/\b(mo|di|mi|do|fr|sa|so|mon|tue|wed|thu|fri|sat|sun|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\b\.?/i))) {
+      const wd = WDAY[m[1].toLowerCase()];
+      let d = today;
+      for (let i = 0; i < 7 && d.getDay() !== wd; i++) d = addD(d, -1);
+      date = d;
+    }
+    return { date: date ? iso(date) : null, time: tm ? pad(+tm[1]) + ":" + tm[2] : null };
+  }
+
+  /** Beträge mit Währungszeichen: -106,18 € · +99 € · €19.99 · 1.234,56 EUR */
+  const MONEY_RE = /([+\-−–]\s?)?(€\s?)?(\d{1,3}(?:[.,]\d{3})+|\d+)([.,]\d{1,2})?(\s?(?:€|EUR|USDT|BTC))?/g;
+  function findMoney(s) {
+    // „1.204 56 €“ (Komma nicht erkannt) → 1.204,56 €
+    s = String(s).replace(/(\d)\s(\d{2})\s?(€|EUR)/g, (m, a, b, c, i, all) => (/[.,]\d{1,2}$/.test(all.slice(Math.max(0, i - 4), i + 1)) ? m : a + "," + b + " " + c));
+    const out = [];
+    let m;
+    MONEY_RE.lastIndex = 0;
+    while ((m = MONEY_RE.exec(s))) {
+      if (!m[2] && !m[5]) continue; // ohne Währung ist es keine Geldangabe (Uhrzeit, Anzahl …)
+      const before = s[m.index - 1];
+      if (before && /[\d:]/.test(before)) continue;
+      const intPart = m[3].replace(/[.,]/g, "");
+      const value = parseFloat(intPart + (m[4] ? "." + m[4].slice(1) : ""));
+      if (!isFinite(value)) continue;
+      const sign = m[1] ? (m[1].trim() === "+" ? "+" : "-") : "";
+      const cur = /USDT/.test(m[5] || "") ? "USDT" : /BTC/.test(m[5] || "") ? "BTC" : "EUR";
+      out.push({ value, sign, cur, index: m.index, end: m.index + m[0].length, text: m[0].trim() });
+    }
+    return out;
+  }
+  function parseAmountText(s) {
+    const f = findMoney(String(s).includes("€") || /EUR|USDT|BTC/.test(s) ? s : s + " €");
+    return f.length ? f[0] : null;
+  }
+
+  function median(a) { if (!a.length) return 0; const b = a.slice().sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; }
+  function prepLines(raw, W) {
+    const lines = [];
+    for (const l of raw) {
+      let words = (l.words || []).map((w) => ({ t: String(w.text != null ? w.text : w.t || "").trim(), b: w.bbox || w.b })).filter((w) => w.t);
+      if (!words.length) continue;
+      // Symbole/Logos links (Avatare, App-Icons) wegwerfen
+      while (words.length > 1) {
+        const w = words[0];
+        const inIcon = w.b.x1 < 0.205 * W && w.b.x0 > 0.07 * W;
+        const junk = !/[A-Za-zÄÖÜäöü0-9]{2,}/.test(w.t) || /^[^\w€+\-−]+$/.test(w.t);
+        if (inIcon || (junk && w.b.x1 < 0.22 * W)) words.shift(); else break;
+      }
+      const text = words.map((w) => w.t).join(" ").replace(/\s+/g, " ").trim();
+      if (!text) continue;
+      const b = l.bbox || l.b;
+      lines.push({ text, words, x0: words[0].b.x0, x1: words[words.length - 1].b.x1, y0: b.y0, y1: b.y1, h: b.y1 - b.y0 });
+    }
+    lines.sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
+    return lines;
+  }
+  function detectBank(text) {
+    const t = text.toLowerCase();
+    if (/revolut/.test(t)) return "Revolut";
+    if (/bank of cyprus|bankofcyprus|1bank/.test(t)) return "Bank of Cyprus";
+    if (/binance/.test(t)) return "Binance";
+    if (/\bn26\b/.test(t)) return "N26";
+    if (/\bwise\b/.test(t)) return "Wise";
+    if (/paypal/.test(t)) return "PayPal";
+    if (/trade republic/.test(t)) return "Trade Republic";
+    if (/hellenic bank/.test(t)) return "Hellenic Bank";
+    if (/unzureichendes guthaben|anstehende zahlung|einzahlen bewegen|kontostand: |zahlungserinnerung/.test(t)) return "Revolut";
+    return null;
+  }
+  function cleanMerchant(s) {
+    let m = String(s).replace(/[|\\_“”"»«]/g, " ").replace(/\s+/g, " ").trim();
+    m = m.replace(/^[^A-Za-zÄÖÜäöü0-9]+/, "").replace(/[^A-Za-zÄÖÜäöü0-9).&'!]+$/, "");
+    m = m.replace(/\s+[A-Za-z|]$/, "").replace(/\s+[^\sA-Za-zÄÖÜäöü0-9]+$/, ""); // einzelne Störzeichen am Ende
+    // GROSSBUCHSTABEN → Normal
+    if (m.length > 3 && m === m.toUpperCase() && /[A-Z]{3}/.test(m)) m = m.toLowerCase().replace(/(^|[\s\-&./])([a-zäöü])/g, (x, a, b) => a + b.toUpperCase());
+    return m.slice(0, 60);
+  }
+
+  /* ---------- Screenshots aus Banking-Apps ---------- */
+  function parseScreenshot(raw, W, H, opt) {
+    const today = dayOnly(opt && opt.today ? new Date(opt.today) : new Date());
+    const colorOf = (opt && opt.colorOf) || (() => null);
+    const lines = prepLines(raw, W);
+    const medH = median(lines.map((l) => l.h)) || 40;
+    const wordH = (w) => w.b.y1 - w.b.y0;
+    const medWordH = median([].concat(...lines.map((l) => l.words.filter((w) => /[A-Za-zÄÖÜäöü]{3,}/.test(w.t)).map(wordH)))) || medH;
+    const statusBar = 0.065 * H;
+    const all = lines.map((l) => l.text).join("\n");
+    const out = { bank: detectBank(all), balances: [], txs: [], scheduled: [], skipped: 0 };
+    const used = new Set();
+
+    // 1) Mitteilungen: Kopfzeile mit Zeitstempel rechts, darunter der Text
+    const TS = /((?:(?:gestern|heute|yesterday|today|mo|di|mi|do|fr|sa|so|mon|tue|wed|thu|fri|sat|sun)\.?,?\s*)?\d{1,2}:\d{2}|jetzt|now|vor\s+\d+\s*(?:min|std)\.?)\s*$/i;
+    const heads = [];
+    lines.forEach((l, i) => { const m = l.text.match(TS); if (m && l.x1 > 0.7 * W && l.text.length - m[0].length >= 2) heads.push({ i, title: l.text.slice(0, m.index).trim(), stamp: m[1] }); });
+    for (let h = 0; h < heads.length; h++) {
+      const hd = heads[h];
+      const end = h + 1 < heads.length ? heads[h + 1].i : lines.length;
+      const bodyLines = [];
+      for (let j = hd.i + 1; j < end && j <= hd.i + 4; j++) bodyLines.push(lines[j]);
+      const body = bodyLines.map((l) => l.text).join(" ");
+      const when = findDate(hd.stamp, today);
+      const date = when.date || iso(today);
+      let m, hit = false;
+      if ((m = body.match(/(?:du hast|you spent|you've spent)\s+(€?\s?[\d.,]+\s?€?)\s*(?:bei\s+([^.]+?)\s+)?(?:ausgegeben)?/i))) {
+        const a = parseAmountText(m[1]);
+        if (a) { out.txs.push({ date, time: when.time, merchant: cleanMerchant(m[2] || hd.title), amount: a.value, cur: a.cur, kind: "expense", src: "Mitteilung" }); hit = true; }
+      }
+      if ((m = body.match(/(?:du hast|you(?:'ve)? received)\s+(€?\s?[\d.,]+\s?€?)\s+(?:von|from)\s+(.+?)\s*(?:erhalten|bekommen|$)/i))) {
+        const a = parseAmountText(m[1]);
+        if (a) { out.txs.push({ date, time: when.time, merchant: cleanMerchant(m[2] || hd.title), amount: a.value, cur: a.cur, kind: "income", src: "Mitteilung" }); hit = true; }
+      }
+      if ((m = body.match(/(?:([A-Z]{3})\s+)?(?:kontostand|balance)\s*:?\s*(€?\s?[\d.,]+\s?(?:€|EUR|USDT)?)/i))) {
+        const a = parseAmountText(m[2]);
+        if (a) { out.balances.push({ value: a.value, cur: m[1] && /USD/.test(m[1]) ? "USDT" : a.cur, date, time: when.time, src: "Mitteilung" }); hit = true; }
+      }
+      if ((m = body.match(/zahlung von\s+(€?\s?[\d.,]+\s?€?)\s+an\s+(.+?)\s+ist\s+für\s+(heute|morgen|übermorgen)\s+geplant/i)) || (m = body.match(/payment of\s+(€?\s?[\d.,]+\s?€?)\s+to\s+(.+?)\s+is\s+scheduled\s+for\s+(today|tomorrow)/i))) {
+        const a = parseAmountText(m[1]);
+        const off = /morgen|tomorrow/i.test(m[3]) ? (/über/i.test(m[3]) ? 2 : 1) : 0;
+        if (a) { out.scheduled.push({ merchant: cleanMerchant(m[2]), amount: a.value, cur: a.cur, date: iso(addD(new Date(date + "T00:00:00"), off)) }); hit = true; }
+      }
+      if (hit) { used.add(hd.i); for (const l of bodyLines) used.add(lines.indexOf(l)); }
+    }
+
+    // 2) Listen: Tageskopf, Kontostand oben, Zeilen „Händler … Betrag“ mit Unterzeile (Zeit/Datum/Status)
+    let ctxDate = null;
+    for (let i = 0; i < lines.length; i++) {
+      if (used.has(i)) continue;
+      const l = lines[i];
+      if ((l.y0 + l.y1) / 2 < statusBar || (l.y0 < 0.08 * H && /^\W*\d{1,2}:\d{2}\b/.test(l.text))) continue; // Statusleiste (Uhrzeit, Netz, Akku)
+      const money = findMoney(l.text);
+      const rest = money.length ? (l.text.slice(0, money[money.length - 1].index) + l.text.slice(money[money.length - 1].end)).trim() : l.text;
+      const dt = findDate(rest, today);
+      // Tageskopf („29. September -292,66 €“, „Heute“)
+      if (l.x0 < 0.09 * W && dt.date && !dt.time && rest.replace(/[^A-Za-zÄÖÜäöü]/g, "").length <= 14 && /^(\d|heute|gestern|vorgestern|today|yesterday|mo|di|mi|do|fr|sa|so|mon|tue|wed|thu|fri|sat|sun)/i.test(rest)) {
+        ctxDate = dt.date;
+        continue;
+      }
+      // Großer Kontostand oben
+      const nx0 = lines[i + 1];
+      const w2 = nx0 && nx0.y0 - l.y1 < 2 * medH && !findMoney(nx0.text).length ? findDate(nx0.text, today) : { date: null, time: null };
+      const big = Math.max(...l.words.map(wordH)) > 1.45 * medWordH;
+      if (money.length === 1 && rest.replace(/[^A-Za-zÄÖÜäöü0-9]/g, "").length <= 2 && l.y0 < 0.45 * H && (big || (w2.date && w2.time))) {
+        out.balances.push({ value: money[0].value, cur: money[0].cur, date: w2.date || iso(today), time: w2.time, src: "Kontostand", big: true });
+        if (w2.date) { i++; ctxDate = w2.date; }
+        continue;
+      }
+      if (!money.length) continue;
+      const mny = money[money.length - 1];
+      const tail = l.text.slice(mny.end).trim();
+      const mWord = l.words.find((w) => l.text.indexOf(w.t) >= 0 && w.t.includes(mny.text.split(/\s/).pop()));
+      const rightAligned = l.x1 > 0.72 * W && tail.replace(/[^A-Za-z0-9]/g, "").length <= 1;
+      if (!rightAligned) continue;
+      let title = l.text.slice(0, mny.index).trim();
+      let sub = "", j = i + 1;
+      // Betrag sitzt mittig neben Name + Zeit → Tesseract hängt ihn an die Zeit-Zeile („08:02 -11,99 €“): Name steht eine Zeile höher
+      const startsMeta = /^\W*(\d{1,2}:\d{2}|heute|gestern|today|yesterday|\d{1,2}\.\s?[A-Za-zÄÖÜäöü]{3})/i.test(title);
+      if (startsMeta || !/[A-Za-zÄÖÜäöü]{3,}/.test(title)) {
+        const pv = lines[i - 1];
+        if (!pv || used.has(i - 1) || l.y0 - pv.y1 > 1.2 * medH || findMoney(pv.text).length || !/[A-Za-zÄÖÜäöü]{3,}/.test(pv.text) || findDate(pv.text, today).date) continue;
+        sub = " " + title;
+        title = pv.text;
+      }
+      if (!/[A-Za-zÄÖÜäöü]{3,}/.test(title)) continue;
+      // Unterzeile(n)
+      while (j < lines.length && j <= i + 2 && lines[j].y0 - (j === i + 1 ? l.y1 : lines[j - 1].y1) < 1.3 * medH && !findMoney(lines[j].text).some((x) => lines[j].x1 > 0.72 * W)) {
+        sub += " " + lines[j].text;
+        j++;
+      }
+      const subDate = findDate(sub, today);
+      const status = title + " " + sub;
+      if (SCHEDULED.test(status)) { i = j - 1; continue; }
+      if (DECLINED.test(status)) { out.skipped++; i = j - 1; continue; }
+      let sign = mny.sign;
+      if (!sign) {
+        const c = colorOf(mWord ? mWord.b : { x0: l.x1 - 0.2 * W, x1: l.x1, y0: l.y0, y1: l.y1 });
+        sign = c === "green" ? "+" : "-";
+      }
+      out.txs.push({
+        date: subDate.date || ctxDate || iso(today), time: subDate.time, merchant: cleanMerchant(title), amount: mny.value, cur: mny.cur,
+        kind: sign === "+" ? "income" : "expense", src: "Liste", dateGuessed: !subDate.date && !ctxDate,
+      });
+      i = j - 1;
+    }
+    return out;
+  }
+
+  /* ---------- Kassenzettel ---------- */
+  const TOTAL_KW = [/zu\s*zahlen|zahlbetrag|endbetrag|amount\s*due|payable|πληρωτ/i, /\bsumme\b|gesamt(?:betrag|summe)?|\btotal\b|σ[υύ]νολο|συνολο/i, /kartenzahlung|ec-?karte|girocard|visa|mastercard|maestro|card\b|betrag/i];
+  const NOT_TOTAL = /zwischensumme|sub-?total|netto|mwst|ust\b|vat|tax|steuer|rabatt|discount|gegeben|rückgeld|change|\bbar\b|cash|pfand|tip|trinkgeld/i;
+  const AMT2 = /(?:^|[^\d])(\d{1,4}(?:[.,]\d{3})*[.,]\d{2})(?!\d)/g;
+  function amountsIn(s) {
+    const out = [];
+    let m;
+    AMT2.lastIndex = 0;
+    while ((m = AMT2.exec(s))) {
+      const raw = m[1];
+      const last = Math.max(raw.lastIndexOf(","), raw.lastIndexOf("."));
+      const v = parseFloat(raw.slice(0, last).replace(/[.,]/g, "") + "." + raw.slice(last + 1));
+      if (isFinite(v)) out.push(v);
+    }
+    return out;
+  }
+  function parseReceipt(raw, W, H, opt) {
+    const today = dayOnly(opt && opt.today ? new Date(opt.today) : new Date());
+    const lines = (raw || []).map((l) => ({ text: String(l.text || "").replace(/\s+/g, " ").trim(), y0: (l.bbox || l.b).y0, y1: (l.bbox || l.b).y1 })).filter((l) => l.text).sort((a, b) => a.y0 - b.y0);
+    const res = { merchant: "", date: null, total: null, totalFrom: "" };
+    // Geschäft: erste sinnvolle Zeile oben
+    for (const l of lines.slice(0, Math.max(3, Math.ceil(lines.length * 0.3)))) {
+      const letters = l.text.replace(/[^A-Za-zÄÖÜäöüß]/g, "");
+      if (letters.length < 3 || letters.length / l.text.length < 0.5) continue;
+      if (/kassenbon|rechnung|receipt|beleg|quittung|tel\.?|fax|www\.|http|str\.|straße|strasse|ust|vat|uid|steuer|filiale|öffnungszeit|willkommen|welcome|danke/i.test(l.text)) continue;
+      res.merchant = cleanMerchant(l.text);
+      break;
+    }
+    for (const l of lines) { const d = findDate(l.text, today); if (d.date && /\d/.test(l.text)) { res.date = d.date; break; } }
+    for (let p = 0; p < TOTAL_KW.length && res.total == null; p++) {
+      for (let i = 0; i < lines.length; i++) {
+        const l = lines[i];
+        if (!TOTAL_KW[p].test(l.text) || NOT_TOTAL.test(l.text)) continue;
+        let a = amountsIn(l.text);
+        if (!a.length && lines[i + 1]) a = amountsIn(lines[i + 1].text);
+        if (a.length) { res.total = a[a.length - 1]; res.totalFrom = l.text; break; }
+      }
+    }
+    if (res.total == null) {
+      let best = null;
+      for (const l of lines) { if (NOT_TOTAL.test(l.text)) continue; for (const v of amountsIn(l.text)) if (v < 100000 && (best == null || v > best)) best = v; }
+      if (best != null) { res.total = best; res.totalFrom = "größter Betrag"; }
+    }
+    return res;
+  }
+
+  /* ---------- Kategorie raten ---------- */
+  const CATS = [
+    ["Abos & Software", /netflix|spotify|\bmax\b|hbo|disney|apple\.com|icloud|itunes|app store|google (one|play|storage)|youtube|prime video|amazon prime|chatgpt|openai|anthropic|claude|adobe|microsoft|dazn|sky\b|audible|canva|notion|dropbox/i],
+    ["Lebensmittel", /lidl|aldi|rewe|edeka|alphamega|sklavenitis|carrefour|supermar|papantoniou|metro|kaufland|netto|penny|spar\b|billa|bäcker|baker|grocery|market/i],
+    ["Restaurant & Café", /restaurant|caf[eé]|coffee|starbucks|costa|mcdonald|burger|kfc|pizz|wolt|foody|bolt food|uber ?eats|lieferando|taverna|taverne|bar &|kebab|sushi|bistro/i],
+    ["Transport", /uber|bolt|taxi|tank|petrolina|\beko\b|esso|shell|\bbp\b|total ?energies|parking|parken|bus|metro ticket|lime|bird/i],
+    ["Handy & Internet", /cyta|epic|primetel|vodafone|telekom|\bo2\b|cabletel|mobile/i],
+    ["Reisen", /ryanair|wizz|easyjet|aegean|lufthansa|booking\.com|airbnb|hotel|flug|airline|expedia/i],
+    ["Gesundheit & Sport", /apotheke|pharmac|gym|fitness|arzt|doctor|clinic|klinik/i],
+    ["Shopping", /amazon|zara|h&m|ikea|jumbo|nike|adidas|zalando|shein|temu|aliexpress|mediamarkt|public\b|stephanis/i],
+  ];
+  function guessCategory(merchant, kind) {
+    if (kind === "income") {
+      if (/gehalt|lohn|salary|payroll/i.test(merchant || "")) return "Gehalt";
+      if (/zinsen|interest|staking|earn/i.test(merchant || "")) return "Zinsen & Staking";
+      if (/erstattung|refund|rückzahlung/i.test(merchant || "")) return "Erstattung";
+      return "";
+    }
+    for (const [c, re] of CATS) if (re.test(merchant || "")) return c;
+    return "";
+  }
+
+  return { parseScreenshot, parseReceipt, findMoney, findDate, guessCategory, detectBank };
+})();
+if (typeof module !== "undefined" && module.exports) module.exports = SCANPARSE;
+
+/* ===== scan.js ===== */
+/* ======================================================================
+   Scannen: Screenshots aus Banking-Apps und Kassenzettel per Kamera.
+   Texterkennung läuft auf dem Gerät (tesseract.js in docs/ocr/, wird beim
+   ersten Scannen geladen und danach offline vorgehalten). Ausgewertet wird
+   in scanparse.js; hier: Bild vorbereiten, erkennen, Prüfliste, buchen.
+   ====================================================================== */
+const OCR = { worker: null, loading: null, onProgress: null };
+let SCAN_BANK = null;
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error("Laden fehlgeschlagen"));
+    document.head.appendChild(s);
+  });
+}
+async function ocrWorker() {
+  if (OCR.worker) return OCR.worker;
+  if (!OCR.loading) {
+    OCR.loading = (async () => {
+      if (!window.Tesseract) await loadScript("ocr/tesseract.min.js");
+      const base = new URL("ocr/", location.href).href;
+      const w = await window.Tesseract.createWorker("deu", 1, {
+        workerPath: base + "worker.min.js",
+        corePath: base,
+        langPath: base,
+        gzip: true,
+        workerBlobURL: false,
+        logger: (m) => { if (OCR.onProgress) OCR.onProgress(m); },
+      });
+      OCR.worker = w;
+      return w;
+    })();
+  }
+  try { return await OCR.loading; } catch (e) { OCR.loading = null; throw e; }
+}
+
+/* ---------- Bild vorbereiten ---------- */
+function loadImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => resolve({ img, url });
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Bild konnte nicht gelesen werden")); };
+    img.src = url;
+  });
+}
+/** Graustufen, dunkle Bilder umkehren, Kontrast strecken. Original bleibt für Farbproben erhalten. */
+function prepareImage(img, mode) {
+  let W = img.naturalWidth, H = img.naturalHeight;
+  const maxSide = mode === "receipt" ? 2200 : 3000;
+  let scale = Math.min(1, maxSide / Math.max(W, H));
+  if (mode === "receipt" && Math.max(W, H) * scale < 1400) scale = Math.min(2, 1400 / Math.max(W, H));
+  W = Math.round(W * scale); H = Math.round(H * scale);
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const x = c.getContext("2d", { willReadFrequently: true });
+  x.drawImage(img, 0, 0, W, H);
+  const id = x.getImageData(0, 0, W, H);
+  const orig = new Uint8ClampedArray(id.data);
+  const d = id.data;
+  const hist = new Uint32Array(256);
+  let sum = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    const L = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000;
+    d[i] = L;
+    sum += L;
+  }
+  const dark = sum / (d.length / 4) < 110;
+  for (let i = 0; i < d.length; i += 4) { const L = dark ? 255 - d[i] : d[i]; d[i] = L; hist[L | 0]++; }
+  const n = d.length / 4;
+  let lo = 0, hi = 255, acc = 0;
+  for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc > n * 0.02) { lo = v; break; } }
+  acc = 0;
+  for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc > n * 0.02) { hi = v; break; } }
+  const span = Math.max(1, hi - lo);
+  for (let i = 0; i < d.length; i += 4) {
+    const v = Math.max(0, Math.min(255, ((d[i] - lo) * 255) / span));
+    d[i] = d[i + 1] = d[i + 2] = v;
+    d[i + 3] = 255;
+  }
+  x.putImageData(id, 0, 0);
+  const colorOf = (b) => {
+    if (!b) return null;
+    const px = (X, Y) => (Math.min(H - 1, Math.max(0, Y)) * W + Math.min(W - 1, Math.max(0, X))) * 4;
+    const bi = px(b.x0 - 6, Math.round((b.y0 + b.y1) / 2));
+    const bg = [orig[bi], orig[bi + 1], orig[bi + 2]];
+    let r = 0, g = 0, bl = 0, k = 0;
+    for (let Y = b.y0; Y < b.y1; Y += 2) for (let X = b.x0; X < b.x1; X += 2) {
+      const i = px(X, Y);
+      if (Math.abs(orig[i] - bg[0]) + Math.abs(orig[i + 1] - bg[1]) + Math.abs(orig[i + 2] - bg[2]) > 120) { r += orig[i]; g += orig[i + 1]; bl += orig[i + 2]; k++; }
+    }
+    if (!k) return null;
+    r /= k; g /= k; bl /= k;
+    return g > r + 35 && g > bl + 5 ? "green" : r > g + 50 && r > bl + 50 ? "red" : "plain";
+  };
+  return { canvas: c, W, H, colorOf };
+}
+function thumbOf(img, max) {
+  const s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement("canvas");
+  c.width = Math.round(img.naturalWidth * s);
+  c.height = Math.round(img.naturalHeight * s);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", 0.72);
+}
+async function recognize(canvas) {
+  const w = await ocrWorker();
+  const { data } = await w.recognize(canvas, {}, { blocks: true, text: true });
+  const lines = [];
+  for (const b of data.blocks || []) for (const p of b.paragraphs || []) for (const l of p.lines || []) {
+    lines.push({ text: l.text, bbox: l.bbox, words: (l.words || []).map((w) => ({ text: w.text, bbox: w.bbox })) });
+  }
+  return lines;
+}
+
+/* ---------- Fortschritt ---------- */
+function scanProgress(title) {
+  openModal({
+    title,
+    body: '<div class="scan-prog"><div class="meter"><i id="scan-bar" style="width:4%"></i></div><p class="muted" id="scan-msg" style="margin:0">Bereite vor …</p><p class="faint" style="margin:0;font-size:12.5px">' + icon("lock", "sm") + ' Die Texterkennung läuft auf deinem Gerät – das Bild verlässt es nicht.</p></div>',
+  });
+  const set = (pct, msg) => {
+    const b = $("#scan-bar"), m = $("#scan-msg");
+    if (b && pct != null) b.style.width = Math.max(4, Math.min(100, pct)) + "%";
+    if (m && msg) m.textContent = msg;
+  };
+  return set;
+}
+function ocrProgressHandler(set, base, share, label) {
+  return (m) => {
+    if (!m) return;
+    if (/loading|initializ/i.test(m.status || "")) set(base + share * 0.3 * (m.progress || 0), OCR.worker ? label : "Texterkennung wird geladen (nur beim ersten Mal, ca. 5 MB) …");
+    else if (/recogniz/i.test(m.status || "")) set(base + share * (0.3 + 0.7 * (m.progress || 0)), label);
+  };
+}
+function scanError(e) {
+  closeModal();
+  const offline = navigator.onLine === false;
+  toast(offline && !OCR.worker ? "Für die erste Texterkennung brauchst du einmal Internet (ca. 5 MB)." : "Das Bild konnte nicht gelesen werden" + (e && e.message ? " (" + e.message + ")" : "") + ".", { err: true });
+  console.warn(e);
+}
+
+/* ---------- Screenshots ---------- */
+async function scanScreenshots(files) {
+  files = Array.from(files || []).filter((f) => /^image\//.test(f.type) || /\.(png|jpe?g|heic|webp)$/i.test(f.name));
+  if (!files.length) return;
+  const set = scanProgress(files.length > 1 ? files.length + " Screenshots lesen" : "Screenshot lesen");
+  const today = isoDate();
+  const merged = { bank: null, balances: [], txs: [], scheduled: [], skipped: 0, images: files.length };
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const share = 100 / files.length, base = i * share;
+      const label = files.length > 1 ? "Lese Bild " + (i + 1) + " von " + files.length + " …" : "Lese Screenshot …";
+      OCR.onProgress = ocrProgressHandler(set, base, share, label);
+      set(base + 2, label);
+      const { img, url } = await loadImageFile(files[i]);
+      const prep = prepareImage(img, "screenshot");
+      URL.revokeObjectURL(url);
+      const lines = await recognize(prep.canvas);
+      const r = SCANPARSE.parseScreenshot(lines, prep.W, prep.H, { today, colorOf: prep.colorOf });
+      merged.bank = merged.bank || r.bank;
+      merged.balances.push(...r.balances);
+      merged.txs.push(...r.txs);
+      merged.scheduled.push(...r.scheduled);
+      merged.skipped += r.skipped;
+    }
+  } catch (e) { scanError(e); return; } finally { OCR.onProgress = null; }
+  // Doppelte (gleicher Umsatz auf mehreren Bildern) zusammenfassen
+  const seen = new Set();
+  merged.txs = merged.txs.filter((t) => { const k = scanKey(t); if (seen.has(k)) return false; seen.add(k); return true; });
+  const sk = new Set();
+  merged.scheduled = merged.scheduled.filter((s) => { const k = s.merchant.toLowerCase() + "|" + s.amount; if (sk.has(k)) return false; sk.add(k); return true; });
+  merged.txs.sort((a, b) => (b.date + (b.time || "")).localeCompare(a.date + (a.time || "")));
+  closeModal(true);
+  openScanReview(merged);
+}
+function scanKey(t) {
+  return t.date + "|" + (t.time || "") + "|" + (t.kind === "income" ? "+" : "-") + Math.round(t.amount * 100) + "|" + String(t.merchant || "").toLowerCase().replace(/[^a-z0-9äöü]/g, "").slice(0, 16);
+}
+function learnedCategory(merchant, kind) {
+  const m = String(merchant || "").toLowerCase().trim();
+  if (m) {
+    let best = null;
+    for (const t of S.data.tx.values()) {
+      if (t.kind !== kind || !t.category || String(t.note || "").toLowerCase().trim() !== m) continue;
+      if (!best || (t.date || "") > (best.date || "")) best = t;
+    }
+    if (best) return best.category;
+  }
+  return SCANPARSE.guessCategory(merchant, kind) || "Sonstiges";
+}
+function findDuplicate(t, accId) {
+  const key = scanKey(t);
+  const cents = Math.round(t.amount * 100);
+  for (const x of S.data.tx.values()) {
+    if (x.importKey === key) return x;
+    if (x.accountId !== accId || x.kind !== t.kind) continue;
+    if (Math.round(Math.abs(x.amount) * 100) !== cents) continue;
+    if (Math.abs(daysBetween(x.date, t.date)) > 1) continue;
+    return x;
+  }
+  return null;
+}
+function suggestFixed(merged) {
+  const out = [];
+  const exists = (name) => Array.from(S.data.fixed.values()).some((f) => String(f.name).toLowerCase() === String(name).toLowerCase());
+  for (const s of merged.scheduled) {
+    if (exists(s.merchant)) continue;
+    out.push({ name: s.merchant, amount: s.amount, cur: s.cur || "EUR", anchor: s.date, why: "geplante Zahlung" });
+  }
+  // Wiederkehrend: gleicher Händler, gleicher Betrag, in mindestens zwei verschiedenen Monaten
+  const pool = [];
+  for (const t of S.data.tx.values()) if (t.kind === "expense" && t.note) pool.push({ m: String(t.note).toLowerCase(), a: Math.round(Math.abs(t.amount) * 100), d: t.date });
+  for (const t of merged.txs) if (t.kind === "expense") pool.push({ m: t.merchant.toLowerCase(), a: Math.round(t.amount * 100), d: t.date, t });
+  for (const t of merged.txs) {
+    if (t.kind !== "expense" || exists(t.merchant) || out.some((o) => o.name.toLowerCase() === t.merchant.toLowerCase())) continue;
+    const same = pool.filter((p) => p.m === t.merchant.toLowerCase() && Math.abs(p.a - Math.round(t.amount * 100)) <= Math.max(50, t.amount * 5));
+    const months = new Set(same.map((p) => monthKey(p.d)));
+    if (months.size >= 2) {
+      const last = same.map((p) => p.d).sort().pop();
+      out.push({ name: t.merchant, amount: t.amount, cur: t.cur || "EUR", anchor: addMonthsClamped(last, 1), why: "kommt jeden Monat" });
+    }
+  }
+  return out;
+}
+
+function openScanReview(merged) {
+  SCAN_BANK = merged.bank;
+  const accs = accountsList(false);
+  const app = S.data.meta.get("app") || {};
+  const bank = merged.bank;
+  const remembered = bank && app.scanAccounts ? app.scanAccounts[bank] : null;
+  let accDefault = remembered && S.data.accounts.get(remembered) ? remembered : null;
+  if (!accDefault && bank) { const a = accs.find((x) => x.name.toLowerCase().includes(bank.toLowerCase())); if (a) accDefault = a.id; }
+  const newOpt = bank && !accs.some((x) => x.name.toLowerCase().includes(bank.toLowerCase())) ? "new:" + bank : null;
+  if (!accDefault) accDefault = newOpt || (accs.find((x) => x.currency === "EUR") || accs[0] || {}).id || "";
+  const balance = merged.balances.slice().sort((a, b) => (b.date + (b.time || "")).localeCompare(a.date + (a.time || "")))[0] || null;
+  const fixedSug = suggestFixed(merged);
+  const txs = merged.txs;
+  if (!txs.length && !balance && !fixedSug.length) {
+    openModal({
+      title: "Nichts gefunden",
+      body: '<p style="margin:0">Auf ' + (merged.images > 1 ? "den Bildern" : "dem Bild") + " habe ich keine Umsätze und keinen Kontostand erkannt" + (merged.skipped ? " (" + merged.skipped + " abgelehnte Zahlung übersprungen)" : "") + '.</p><p class="muted" style="margin:0">Am besten klappt es mit Screenshots der Umsatzliste, der Startseite oder von Mitteilungen deiner Banking-App – möglichst ohne Abschnitt am Rand.</p>',
+      foot: '<button class="btn btn-primary" type="button" data-act="close-modal">Okay</button>',
+    });
+    return;
+  }
+  const accOpts = (newOpt ? '<option value="' + esc(newOpt) + '"' + (accDefault === newOpt ? " selected" : "") + ">+ Neues Konto „" + esc(bank) + "“</option>" : "") +
+    accs.map((a) => '<option value="' + esc(a.id) + '"' + (a.id === accDefault ? " selected" : "") + ">" + esc(a.name) + " · " + a.currency + "</option>").join("");
+  const rowHtml = (t, i) => {
+    const dup = accDefault && !String(accDefault).startsWith("new:") ? findDuplicate(t, accDefault) : null;
+    const neg = t.kind !== "income";
+    return '<div class="scan-row' + (dup ? " dup" : "") + '" data-i="' + i + '">' +
+      '<input type="checkbox" class="scan-ck" id="sc-ck-' + i + '"' + (dup ? "" : " checked") + ' aria-label="Übernehmen">' +
+      '<input class="scan-in scan-m" id="sc-m-' + i + '" value="' + esc(t.merchant) + '" maxlength="60" aria-label="Händler">' +
+      '<span class="scan-sign ' + (neg ? "" : "pos") + '">' + (neg ? "−" : "+") + "</span>" +
+      '<input class="scan-in scan-a ' + (neg ? "" : "pos") + '" id="sc-a-' + i + '" inputmode="decimal" value="' + esc(fmtNum(t.amount, 2, 2)) + '" aria-label="Betrag">' +
+      '<input class="scan-in scan-d" type="date" id="sc-d-' + i + '" value="' + esc(t.date) + '" aria-label="Datum">' +
+      '<input class="scan-in scan-c" id="sc-c-' + i + '" list="dl-scan-cat" value="' + esc(learnedCategory(t.merchant, t.kind)) + '" aria-label="Kategorie">' +
+      '<span class="scan-note" id="sc-n-' + i + '">' + (dup ? "schon gebucht?" : t.time ? t.time + " Uhr" : "") + "</span></div>";
+  };
+  const body =
+    '<p class="muted" style="margin:0;font-size:13.5px">' + (bank ? "<b>" + esc(bank) + "</b> erkannt · " : "") + txs.length + (txs.length === 1 ? " Umsatz" : " Umsätze") +
+    (merged.skipped ? " · " + merged.skipped + " abgelehnte übersprungen" : "") + ". Prüf kurz die Beträge – du kannst alles antippen und ändern.</p>" +
+    fieldHtml("Konto", '<select class="select" id="sc-acc">' + accOpts + "</select>") +
+    (balance ? '<label class="check scan-bal"><input type="checkbox" id="sc-bal" checked> <span><b>Kontostand angleichen: ' + fmtAmt(balance.value, balance.cur) + "</b><br><span class=\"faint\" id=\"sc-bal-hint\" style=\"font-size:12.5px\"></span></span></label>" : "") +
+    (txs.length ? '<div class="sec-title">Umsätze</div><div class="scan-list">' + txs.map(rowHtml).join("") + "</div>" : "") +
+    (fixedSug.length ? '<div class="sec-title">Als Fixkosten anlegen?</div><div class="checklist">' + fixedSug.map((f, i) => '<label class="check"><input type="checkbox" id="sc-fx-' + i + '" checked> <span><b>' + esc(f.name) + "</b> · " + fmtAmt(f.amount, f.cur) + ' monatlich<br><span class="faint" style="font-size:12.5px">' + esc(f.why) + ", nächste am " + fmtDate(f.anchor, true) + "</span></span></label>").join("") + "</div>" : "") +
+    datalist("dl-scan-cat", allCategories());
+  openModal({
+    title: "Aus Screenshot übernehmen",
+    wide: true,
+    body,
+    foot: '<button class="btn" type="button" data-act="close-modal">Abbrechen</button><button class="btn btn-primary" type="submit" id="sc-save">Übernehmen</button>',
+    onMount: (f) => {
+      const upd = () => {
+        const acc = val(f, "sc-acc");
+        // Duplikate fürs gewählte Konto neu prüfen
+        txs.forEach((t, i) => {
+          const dup = !acc.startsWith("new:") ? findDuplicate(t, acc) : null;
+          const row = f.querySelector('.scan-row[data-i="' + i + '"]');
+          if (!row) return;
+          const was = row.classList.contains("dup");
+          row.classList.toggle("dup", !!dup);
+          if (!!dup !== was) f.querySelector("#sc-ck-" + i).checked = !dup;
+          f.querySelector("#sc-n-" + i).textContent = dup ? "schon gebucht?" : t.time ? t.time + " Uhr" : "";
+        });
+        const n = $$(".scan-ck", f).filter((c) => c.checked).length;
+        const fx = fixedSug.filter((x, i) => { const c = f.querySelector("#sc-fx-" + i); return c && c.checked; }).length;
+        const bal = f.querySelector("#sc-bal");
+        const any = n || (bal && bal.checked) || fx;
+        f.querySelector("#sc-save").textContent = n ? n + (n === 1 ? " Umsatz" : " Umsätze") + " übernehmen" : "Übernehmen";
+        f.querySelector("#sc-save").disabled = !any;
+        const hint = f.querySelector("#sc-bal-hint");
+        if (hint && balance) {
+          const plan = scanPlan(f, txs, balance, fixedSug, true);
+          hint.textContent = "Stand vom " + fmtDate(balance.date, true) + (balance.time ? ", " + balance.time : "") + (plan.balanceNote ? " · " + plan.balanceNote : "");
+        }
+      };
+      f.addEventListener("change", upd);
+      f.addEventListener("input", (e) => { if (e.target.classList.contains("scan-a")) upd(); });
+      upd();
+    },
+    onSubmit: (f) => guarded(f.querySelector("#sc-save"), async () => {
+      const plan = scanPlan(f, txs, balance, fixedSug, false);
+      if (plan.error) { toast(plan.error, { err: true }); return; }
+      await dbBatch(plan.ops);
+      closeModal();
+      toast(plan.summary || "Übernommen");
+    }),
+  });
+}
+/** Baut aus der Prüfliste die Speicher-Schritte (oder nur eine Vorschau für den Kontostand). */
+function scanPlan(f, txs, balance, fixedSug, previewOnly) {
+  const accVal = val(f, "sc-acc");
+  const isNew = accVal.startsWith("new:");
+  const bankName = isNew ? accVal.slice(4) : null;
+  const accId = isNew ? newId("acc") : accVal;
+  const acc = isNew ? null : S.data.accounts.get(accId);
+  if (!isNew && !acc) return { error: "Wähl ein Konto." };
+  const cur = isNew ? (txs[0] && txs[0].cur) || (balance && balance.cur) || "EUR" : acc.currency;
+  const ops = [];
+  const newTx = [];
+  let bad = false;
+  txs.forEach((t, i) => {
+    if (!f.querySelector("#sc-ck-" + i).checked) return;
+    const amt = parseNum(val(f, "sc-a-" + i), cur);
+    if (!isFinite(amt) || amt <= 0) { bad = true; return; }
+    const date = validISO(val(f, "sc-d-" + i)) ? val(f, "sc-d-" + i) : t.date;
+    const merchant = val(f, "sc-m-" + i) || t.merchant;
+    const e = toEUR(amt, cur);
+    const doc = { kind: t.kind, date, accountId: accId, amount: round(amt, cur === "BTC" ? 8 : 6), category: val(f, "sc-c-" + i) || "Sonstiges", note: merchant, eur: e == null ? null : round(e, 2), importKey: scanKey(t), source: "scan", createdAt: Date.now() + i };
+    if (t.time) doc.time = t.time;
+    newTx.push(doc);
+    ops.push(["tx", newId("tx"), "set", doc]);
+  });
+  if (bad && !previewOnly) return { error: "Mindestens ein Betrag ist keine gültige Zahl." };
+  // Kontostand zum Zeitpunkt des Screenshots angleichen
+  let balanceNote = "";
+  const balOn = f.querySelector("#sc-bal") && f.querySelector("#sc-bal").checked;
+  let adjust = 0, opening = 0;
+  if (balance && balOn) {
+    const upTo = (t) => t.date < balance.date || (t.date === balance.date && (!t.time || !balance.time || t.time <= balance.time));
+    const eff = (t) => (t.kind === "income" ? 1 : -1) * Math.abs(t.amount);
+    let sum = 0;
+    for (const t of newTx) if (upTo(t)) sum += eff(t);
+    if (isNew) {
+      opening = round(balance.value - sum, cur === "BTC" ? 8 : 2);
+      balanceNote = "Startsaldo wird passend gesetzt";
+    } else {
+      // Bisheriger Stand bis zu diesem Zeitpunkt (ohne die neuen Umsätze)
+      let have = +acc.opening || 0;
+      for (const t of S.data.tx.values()) {
+        for (const [id, d] of txEffects(t)) if (id === accId && upTo(t)) have += fromMinor(d, cur);
+      }
+      adjust = round(balance.value - (have + sum), cur === "BTC" ? 8 : 2);
+      balanceNote = Math.abs(adjust) < 0.005 ? "passt schon" : "Korrektur " + fmtAmt(adjust, cur, { sign: true });
+    }
+  }
+  if (previewOnly) return { balanceNote };
+  if (isNew) {
+    const order = Math.max(0, ...accountsList(true).map((x) => x.order || 0)) + 1;
+    ops.unshift(["accounts", accId, "set", { name: bankName, currency: cur, kind: /binance|crypto/i.test(bankName) ? "exchange" : "bank", opening, includeInTotal: true, archived: false, order, note: "", createdAt: Date.now() }]);
+  } else if (Math.abs(adjust) >= 0.005) {
+    ops.push(["tx", newId("tx"), "set", { kind: "adjust", date: balance.date, time: balance.time || undefined, accountId: accId, amount: adjust, note: "Abgleich mit Screenshot", eur: (() => { const e = toEUR(Math.abs(adjust), cur); return e == null ? null : round(e, 2); })(), source: "scan", createdAt: Date.now() }]);
+  }
+  let nfx = 0;
+  fixedSug.forEach((s, i) => {
+    const c = f.querySelector("#sc-fx-" + i);
+    if (!c || !c.checked) return;
+    nfx++;
+    ops.push(["fixed", newId("fx"), "set", { kind: "expense", name: s.name, amount: s.amount, currency: s.cur || cur, interval: "monthly", anchor: s.anchor, accountId: accId, category: learnedCategory(s.name, "expense"), active: true, createdAt: Date.now() }]);
+  });
+  const app = S.data.meta.get("app") || {};
+  if (SCAN_BANK) ops.push(["meta", "app", "update", { scanAccounts: Object.assign({}, app.scanAccounts || {}, { [SCAN_BANK]: accId }) }]);
+  const parts = [];
+  if (newTx.length) parts.push(newTx.length + (newTx.length === 1 ? " Umsatz" : " Umsätze") + " gebucht");
+  if (balance && balOn) parts.push(isNew ? "Konto „" + bankName + "“ angelegt" : Math.abs(adjust) >= 0.005 ? "Kontostand angeglichen" : "Kontostand stimmt");
+  if (nfx) parts.push(nfx + " Fixkosten angelegt");
+  return { ops, summary: parts.join(" · ") };
+}
+/* ---------- Kassenzettel ---------- */
+async function scanReceipt(file) {
+  if (!file) return;
+  const set = scanProgress("Kassenzettel lesen");
+  let r, thumb;
+  try {
+    OCR.onProgress = ocrProgressHandler(set, 0, 100, "Lese Kassenzettel …");
+    set(3, "Lese Kassenzettel …");
+    const { img, url } = await loadImageFile(file);
+    thumb = thumbOf(img, 640);
+    const prep = prepareImage(img, "receipt");
+    URL.revokeObjectURL(url);
+    const lines = await recognize(prep.canvas);
+    r = SCANPARSE.parseReceipt(lines, prep.W, prep.H, { today: isoDate() });
+  } catch (e) { scanError(e); return; } finally { OCR.onProgress = null; }
+  closeModal(true);
+  const app = S.data.meta.get("app") || {};
+  const accId = app.lastReceiptAcc && S.data.accounts.get(app.lastReceiptAcc) ? app.lastReceiptAcc : undefined;
+  openTxForm({
+    prefill: { kind: "expense", amount: r.total != null ? r.total : undefined, note: r.merchant || "", date: r.date || isoDate(), category: r.merchant ? learnedCategory(r.merchant, "expense") : "", accountId: accId },
+    receipt: { thumb, found: r },
+  });
+}
 
 /* ===== views.js ===== */
 /* ======================================================================
@@ -2325,7 +3088,12 @@ function heroGoalHtml() {
 function quickActionsHtml() {
   const b = (act, kind, ic, label) => '<button type="button" data-act="' + act + '"' + (kind ? ' data-kind="' + kind + '"' : "") + '><span class="qi">' + icon(ic) + '</span><span class="ql">' + label + "</span></button>";
   return '<div class="quick hide-desk o2" role="group" aria-label="Schnell erfassen">' +
-    b("new-tx", "expense", "down", "Ausgabe") + b("new-tx", "income", "up", "Einnahme") + b("new-tx", "transfer", "swap", "Umbuchung") + b("adjust-picker", "", "adjust", "Kontostand") + "</div>";
+    b("new-tx", "expense", "down", "Ausgabe") + b("new-tx", "income", "up", "Einnahme") + b("new-tx", "transfer", "swap", "Umbuchung") + b("adjust-picker", "", "adjust", "Kontostand") +
+    '<div class="scan-btns">' + scanButtonsHtml() + "</div></div>";
+}
+function scanButtonsHtml() {
+  return '<button type="button" class="scan-btn" data-act="scan-receipt">' + icon("camera") + '<span><b>Kassenzettel</b><span>fotografieren</span></span></button>' +
+    '<button type="button" class="scan-btn" data-act="scan-shot">' + icon("image") + '<span><b>Screenshot</b><span>aus der Banking-App</span></span></button>';
 }
 function budgetCompact() {
   const ym = monthKey(isoDate());
@@ -2461,7 +3229,7 @@ VIEWS.buchungen = function () {
     if (t.kind === "income") inc += txEUR(t);
     else if (t.kind === "expense") exp += txEUR(t);
   }
-  const head = pageHead("Buchungen", "Einnahmen, Ausgaben und Umbuchungen – jede Buchung ändert den Kontostand", '<button class="btn btn-primary hide-phone" type="button" data-act="new-tx">' + icon("plus") + "Buchung erfassen</button>");
+  const head = pageHead("Buchungen", "Einnahmen, Ausgaben und Umbuchungen – jede Buchung ändert den Kontostand", '<button class="btn" type="button" data-act="scan-receipt">' + icon("camera", "sm") + 'Kassenzettel</button><button class="btn" type="button" data-act="scan-shot">' + icon("image", "sm") + 'Screenshot</button><button class="btn btn-primary hide-phone" type="button" data-act="new-tx">' + icon("plus") + "Buchung erfassen</button>");
   const monthCtl = f.month === "all"
     ? '<button class="btn btn-sm" type="button" data-act="tx-month" data-v="' + monthKey(isoDate()) + '">Nur ' + monthLabel(monthKey(isoDate())) + "</button>"
     : '<div class="month-nav"><button class="icon-btn sm" type="button" data-act="tx-month-step" data-v="-1" aria-label="Vorheriger Monat">' + icon("left", "sm") + '</button><span class="lbl">' + monthLabel(f.month) + '</span><button class="icon-btn sm" type="button" data-act="tx-month-step" data-v="1" aria-label="Nächster Monat">' + icon("right", "sm") + "</button></div>" +
@@ -3219,9 +3987,12 @@ function openTxForm(o = {}) {
   const amt0 = t ? fmtNum(Math.abs(t.amount), 0, cur0 === "BTC" ? 8 : 6) : pre.amount != null ? fmtNum(pre.amount, 0, cur0 === "BTC" ? 8 : 6) : "";
   const toAmt0 = t && t.kind === "transfer" ? fmtNum(Math.abs(t.toAmount), 0, accCur(toId) === "BTC" ? 8 : 6) : "";
   const fixedId = t ? t.fixedId : pre.fixedId;
+  const rc = o.receipt || null;
   const body =
+    (rc ? '<div class="receipt-head">' + (rc.thumb ? '<img src="' + rc.thumb + '" alt="Kassenzettel">' : "") + "<div><b>" + (rc.found && rc.found.total != null ? "Kassenzettel erkannt" : "Summe nicht erkannt") + "</b><span>" +
+      (rc.found && rc.found.total != null ? "Prüf Betrag, Geschäft und Datum – dann wähl das Konto, von dem bezahlt wurde." : "Trag den Betrag ein und wähl das Konto, von dem bezahlt wurde.") + "</span></div></div>" : "") +
     segHtml("tx-kind", [["expense", "Ausgabe"], ["income", "Einnahme"], ["transfer", "Umbuchung"]], kind, !!fixedId) +
-    fieldHtml("Betrag", amountInput("tx-amt", amt0, cur0, 'placeholder="0,00"' + (o.id ? "" : " autofocus")), "", "tx-amt-hint") +
+    fieldHtml("Betrag", amountInput("tx-amt", amt0, cur0, 'placeholder="0,00"' + (o.id || (rc && amt0) ? "" : " autofocus")), "", "tx-amt-hint") +
     '<div class="grid2" id="tx-acc-row">' +
     fieldHtml('<span id="tx-acc-lbl">' + (kind === "transfer" ? "Von Konto" : "Konto") + "</span>", '<select class="select" id="tx-acc">' + accountOptions(accId) + "</select>") +
     '<div id="tx-to-wrap"' + (kind === "transfer" ? "" : " hidden") + ">" + fieldHtml("Auf Konto", '<select class="select" id="tx-to">' + accountOptions(toId) + "</select>") + "</div>" +
@@ -3233,7 +4004,7 @@ function openTxForm(o = {}) {
     (fixedId ? '<div class="preview">' + icon("repeat", "sm") + " Gehört zu Fixkosten „" + esc((S.data.fixed.get(fixedId) || {}).name || "") + "“" + (pre.due || (t && t.period) ? ", fällig " + fmtDate(pre.due || t.period, true) : "") + "</div>" : "") +
     datalist("dl-cat", allCategories(kind === "income" ? "income" : "expense"));
   openModal({
-    title: t ? "Buchung bearbeiten" : fixedId ? (kind === "income" ? "Einnahme buchen" : "Fixkosten buchen") : "Neue Buchung",
+    title: t ? "Buchung bearbeiten" : rc ? "Kassenzettel buchen" : fixedId ? (kind === "income" ? "Einnahme buchen" : "Fixkosten buchen") : "Neue Buchung",
     body,
     foot: (t ? '<button class="btn btn-ghost btn-danger spacer" type="button" data-act="delete-tx" data-id="' + esc(t.id) + '">' + icon("trash", "sm") + "Löschen</button>" : "") +
       '<button class="btn" type="button" data-act="close-modal">Abbrechen</button><button class="btn btn-primary" type="submit" id="tx-save">' + (t ? "Speichern" : "Buchen") + "</button>",
@@ -3308,8 +4079,10 @@ function openTxForm(o = {}) {
         toast("Buchung gespeichert");
       } else {
         doc.createdAt = Date.now();
+        if (rc) doc.source = "receipt";
         const id = fixedId && pre.due ? fixedTxId(fixedId, pre.due) : newId("tx");
         await dbWrite("tx", id, "set", doc);
+        if (rc) dbWrite("meta", "app", "update", { lastReceiptAcc: acc }).catch(() => {});
         closeModal();
         toast(k === "transfer" ? "Umbuchung gespeichert" : k === "income" ? "Einnahme gebucht" : "Ausgabe gebucht");
       }
@@ -4051,6 +4824,8 @@ const ACTIONS = {
   "adjust-balance": (el) => openAdjustForm(el.dataset.id),
   "new-tx": (el) => { if (!accountsList().length) { openAccountForm(); toast("Leg zuerst ein Konto an – dann kannst du buchen."); return; } openTxForm({ acc: el.dataset.acc, prefill: el.dataset.kind ? { kind: el.dataset.kind } : undefined }); },
   "adjust-picker": () => openAdjustPicker(),
+  "scan-shot": () => { const i = $("#scan-shot"); i.value = ""; i.click(); },
+  "scan-receipt": () => { const i = $("#scan-receipt"); i.value = ""; i.click(); },
   "install-guide": () => openInstallGuide(),
   "install-app": () => installApp(),
   "dismiss-install": () => { setUiPref("installSnooze", String(Date.now() + 7 * 86400000)); renderMain(); },
@@ -4134,6 +4909,12 @@ document.addEventListener("input", (e) => {
 });
 document.addEventListener("change", (e) => {
   const t = e.target;
+  if (t.id === "scan-shot" || t.id === "scan-receipt") {
+    const files = Array.from(t.files || []);
+    t.value = ""; // dasselbe Bild nochmal wählen können
+    if (files.length) { if (t.id === "scan-shot") scanScreenshots(files); else scanReceipt(files[0]); }
+    return;
+  }
   if (t.id === "st-import" || t.id === "wl-import") {
     const file = t.files && t.files[0];
     if (file) importBackup(file);
