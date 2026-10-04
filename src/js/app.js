@@ -9,7 +9,7 @@ function scheduleRender() {
 }
 function renderAll() {
   renderShell();
-  renderMain();
+  renderMain(true);
 }
 function afterRender() {
   drawNetWorthChart();
@@ -22,8 +22,8 @@ window.addEventListener("hashchange", () => {
   const r = routeFromHash();
   if (r !== S.ui.route) {
     S.ui.route = r;
-    renderAll();
-    window.scrollTo({ top: 0 });
+    renderShell();
+    renderMain(); // neue Seite beginnt oben (siehe renderMain)
   }
 });
 
@@ -114,14 +114,14 @@ const ACTIONS = {
       if (conv != null && el.dataset.cur !== c.cur) c.amt = fmtNum(conv, 0, el.dataset.cur === "BTC" ? 8 : 2).replace(/\./g, "");
     }
     c.cur = el.dataset.cur;
-    renderMain();
+    renderConverter();
   },
-  "chart-view": (el) => { S.ui.chart.view = el.dataset.v; S.ui.chart.focus = null; setUiPref("chartView", el.dataset.v); renderMain(); },
-  "alloc-by": (el) => { S.ui.chart.allocBy = el.dataset.v; S.ui.chart.focus = null; setUiPref("allocBy", el.dataset.v); renderMain(); },
-  "alloc-focus": (el) => { const k = el.dataset.key; S.ui.chart.focus = S.ui.chart.focus === k ? null : k; renderMain(); },
-  "chart-range": (el) => { S.ui.chart.range = el.dataset.v; setUiPref("chartRange", el.dataset.v); renderMain(); },
-  "chart-mode": (el) => { S.ui.chart.mode = el.dataset.v; renderMain(); },
-  "chart-table": () => { S.ui.chart.table = !S.ui.chart.table; renderMain(); },
+  "chart-view": (el) => { S.ui.chart.view = el.dataset.v; S.ui.chart.focus = null; setUiPref("chartView", el.dataset.v); renderHero(); },
+  "alloc-by": (el) => { S.ui.chart.allocBy = el.dataset.v; S.ui.chart.focus = null; setUiPref("allocBy", el.dataset.v); renderHero(); },
+  "alloc-focus": (el) => { const k = el.dataset.key; S.ui.chart.focus = S.ui.chart.focus === k ? null : k; renderHero(); },
+  "chart-range": (el) => { S.ui.chart.range = el.dataset.v; setUiPref("chartRange", el.dataset.v); renderHero(); },
+  "chart-mode": (el) => { S.ui.chart.mode = el.dataset.v; renderHero(); },
+  "chart-table": () => { S.ui.chart.table = !S.ui.chart.table; renderHero(); },
   "tx-month": (el) => { S.ui.tx.month = el.dataset.v; renderMain(); },
   "tx-month-step": (el) => { S.ui.tx.month = addMonthKey(S.ui.tx.month === "all" ? monthKey(isoDate()) : S.ui.tx.month, +el.dataset.v); renderMain(); },
   "tx-reset": () => { S.ui.tx = { month: monthKey(isoDate()), acc: "", cat: "", kind: "", q: "" }; renderMain(); },

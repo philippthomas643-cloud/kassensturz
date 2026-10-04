@@ -4,6 +4,14 @@
    ====================================================================== */
 const CHANGELOG = [
   {
+    v: "1.0.1",
+    date: "2026-10-04",
+    items: [
+      "Kein Hochspringen mehr: Umrechner, Diagramm-Umschalter, Zeitraum und Aufteilung bleiben beim Tippen an ihrer Stelle",
+      "Neue Kurse im Hintergrund verschieben die Seite nicht mehr und unterbrechen keine Eingabe",
+    ],
+  },
+  {
     v: "1.0.0",
     date: "2026-10-04",
     items: [

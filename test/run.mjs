@@ -31,7 +31,7 @@ try {
   ok(await page.isHidden("#fab"), "Plus-Knopf beim Willkommen ausgeblendet");
   ok(await page.isHidden(".tabbar"), "Tab-Leiste beim Willkommen ausgeblendet");
   const v0 = await page.evaluate(() => window.kassensturz);
-  ok(v0 && v0.version === "1.0.0" && v0.build.length === 10, "Version " + (v0 && v0.version) + " · Build " + (v0 && v0.build));
+  ok(v0 && v0.version === JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version && v0.build.length === 10, "Version " + (v0 && v0.version) + " · Build " + (v0 && v0.build));
 
   /* ---------------- 2. Konten ---------------- */
   step("Konten anlegen");
@@ -194,7 +194,63 @@ try {
   ok(!(await dp.$(".welcome")) && /Noch keine Konten/.test(await dp.textContent("main")), "Leere Übersicht statt Beispieldaten");
   await desk.close();
 
-  /* ---------------- 12. Kursquellen ---------------- */
+  /* ---------------- 12. Scrollposition (wie Safari: ohne Scroll-Verankerung) ---------------- */
+  step("Scrollposition bleibt bei Tipps");
+  const cs = await phoneContext(browser);
+  await mockRates(cs);
+  const ps = await cs.newPage();
+  watchErrors(ps, errors);
+  await ps.goto(BASE);
+  await ps.click('[data-act="load-demo"]');
+  await ps.waitForSelector(".hero");
+  await ps.waitForTimeout(1200);
+  await closeToasts(ps);
+  await ps.addStyleTag({ content: "*{overflow-anchor:none !important}" });
+  const tapKeeps = async (sel, label, setup) => {
+    const el = await ps.$(sel);
+    if (!el) { ok(false, label + " (nicht gefunden)"); return; }
+    await el.evaluate((e) => e.scrollIntoView({ block: "center" }));
+    await ps.waitForTimeout(80);
+    const y0 = await ps.evaluate(() => Math.round(scrollY));
+    await el.tap();
+    await ps.waitForTimeout(350);
+    const y1 = await ps.evaluate(() => Math.round(scrollY));
+    ok(Math.abs(y1 - y0) <= 2, label + " – Position bleibt (" + y0 + " → " + y1 + ")");
+  };
+  await ps.evaluate(() => { window.__conv = document.querySelector("#conv-amt"); });
+  await tapKeeps('[data-act="conv-cur"][data-cur="EUR"]', "Umrechner: Währung EUR");
+  await tapKeeps('[data-act="conv-cur"][data-cur="USDT"]', "Umrechner: Währung USDT");
+  ok(await ps.evaluate(() => window.__conv === document.querySelector("#conv-amt")), "Umrechner-Feld wird nicht neu aufgebaut");
+  ok(/USDT/.test(await ps.textContent("#conv-out")) === false && /Euro/.test(await ps.textContent("#conv-out")), "Umrechner rechnet nach Währungswechsel");
+  await tapKeeps('[data-act="chart-range"][data-v="3M"]', "Diagramm: Zeitraum");
+  await tapKeeps('[data-act="chart-mode"][data-v="cur"]', "Diagramm: Assets");
+  await tapKeeps('[data-act="chart-view"][data-v="alloc"]', "Umschalter: Aufteilung");
+  await tapKeeps('.alloc-item[data-key="BTC"]', "Aufteilung: Bitcoin antippen");
+  await tapKeeps('[data-act="alloc-by"][data-v="acc"]', "Aufteilung: nach Konten");
+  await tapKeeps('[data-act="chart-view"][data-v="growth"]', "Umschalter: Verlauf");
+  // Neue Kurse im Hintergrund (passiver Neuaufbau)
+  await ps.$eval('[data-act="conv-cur"][data-cur="BTC"]', (e) => e.scrollIntoView({ block: "center" }));
+  const yb = await ps.evaluate(() => Math.round(scrollY));
+  await ps.evaluate(() => window.dispatchEvent(new Event("online")));
+  await ps.waitForTimeout(900);
+  ok(Math.abs((await ps.evaluate(() => Math.round(scrollY))) - yb) <= 2, "Neue Kurse im Hintergrund verschieben nichts");
+  await ps.goto(BASE + "#buchungen");
+  await ps.waitForSelector(".filters");
+  await ps.evaluate(() => window.scrollTo(0, 400));
+  await tapKeeps('[data-act="tx-month-step"][data-v="-1"]', "Buchungen: Monat zurück");
+  await ps.goto(BASE + "#budget");
+  await ps.waitForSelector(".month-nav");
+  await tapKeeps('[data-act="budget-month"][data-v="-1"]', "Budget: Monat zurück");
+  await ps.goto(BASE + "#konten");
+  await ps.waitForSelector(".acc-row");
+  await ps.evaluate(() => window.scrollTo(0, 99999));
+  const yk = await ps.evaluate(() => Math.round(scrollY));
+  await ps.goto(BASE + "#uebersicht");
+  await ps.waitForSelector(".hero");
+  ok((await ps.evaluate(() => Math.round(scrollY))) === 0 || yk === 0, "Seitenwechsel beginnt oben");
+  await cs.close();
+
+  /* ---------------- 13. Kursquellen ---------------- */
   step("Kursquellen");
   const c2 = await phoneContext(browser);
   await mockRates(c2, "cryptocom-down");

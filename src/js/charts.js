@@ -68,6 +68,7 @@ function xTicks(first, last, width) {
   return out;
 }
 let chartUid = 0;
+let lastChartH = 0; // reservierte Höhe, damit beim Neuzeichnen nichts zusammenfällt
 function drawNetWorthChart() {
   const host = $("#chart-nw");
   if (!host) return;
@@ -83,6 +84,7 @@ function drawNetWorthChart() {
   }
   const W = Math.max(280, Math.round(host.clientWidth || 600));
   const H = W < 520 ? 196 : 256;
+  lastChartH = H;
   const M = { l: 46, r: 10, t: 12, b: 26 };
   const iw = W - M.l - M.r, ih = H - M.t - M.b;
   const first = pts[0].date, last = pts[pts.length - 1].date;

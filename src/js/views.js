@@ -88,7 +88,10 @@ function needsWelcome() {
   if (app && app.onboarded) return false;
   return !S.data.accounts.size && !S.data.tx.size && !S.data.goals.size && !S.data.fixed.size;
 }
-function renderMain() {
+let renderDeferred = false;
+let renderedRoute = "";
+/** Baut den Hauptbereich neu auf. passive = von selbst ausgelöst (neue Kurse, Daten), nicht durch einen Tipp. */
+function renderMain(passive) {
   const main = $("#main");
   if (S.runtime === "pending") return;
   if (S.runtime !== "ok") {
@@ -97,7 +100,17 @@ function renderMain() {
     return;
   }
   const ae = document.activeElement;
-  const keep = ae && main.contains(ae) && ae.id ? { id: ae.id, s: ae.selectionStart, e: ae.selectionEnd } : null;
+  const typing = !!(ae && main.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName));
+  if (passive && typing) {
+    // Während getippt wird nichts austauschen (sonst springt die Tastatur bzw. die Seite) – danach nachholen
+    if (!renderDeferred) {
+      renderDeferred = true;
+      ae.addEventListener("blur", () => { renderDeferred = false; scheduleRender(); }, { once: true });
+    }
+    return;
+  }
+  const keep = typing && ae.id ? { id: ae.id, s: ae.selectionStart, e: ae.selectionEnd } : null;
+  const scrollY0 = window.scrollY;
   const scrollers = $$("[data-keep-scroll]", main).map((el) => [el.dataset.keepScroll, el.scrollTop, el.scrollLeft]);
   let html;
   if (needsWelcome()) html = welcomeHtml();
@@ -121,6 +134,38 @@ function renderMain() {
     }
   }
   afterRender();
+  const routeChanged = renderedRoute !== S.ui.route;
+  renderedRoute = S.ui.route;
+  if (routeChanged) window.scrollTo(0, 0);
+  else keepScroll(scrollY0);
+}
+/** Safari hat keine Scroll-Verankerung: Position nach dem Neuaufbau ausdrücklich halten. */
+function keepScroll(y) {
+  if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
+  requestAnimationFrame(() => { if (Math.abs(window.scrollY - y) > 1 && document.documentElement.scrollHeight - window.innerHeight >= y) window.scrollTo(0, y); });
+}
+/** Nur die Vermögenskarte neu zeichnen (Diagramm-Umschalter, Zeitraum, Aufteilung …). */
+function renderHero() {
+  const old = $("#main .hero");
+  if (!old) { renderMain(); return; }
+  const y = window.scrollY;
+  const t = document.createElement("div");
+  t.innerHTML = heroHtml();
+  old.replaceWith(t.firstElementChild);
+  lastMainHtml = "";
+  drawNetWorthChart();
+  keepScroll(y);
+}
+/** Nur den Umrechner aktualisieren – das Eingabefeld bleibt, wie es ist. */
+function renderConverter() {
+  const box = $("#main .conv");
+  if (!box) { renderMain(); return; }
+  const inp = $("#conv-amt");
+  if (inp && inp.value !== S.ui.conv.amt) inp.value = S.ui.conv.amt;
+  for (const b of $$('[data-act="conv-cur"]', box)) b.setAttribute("aria-pressed", String(b.dataset.cur === S.ui.conv.cur));
+  const out = $("#conv-out");
+  if (out) out.innerHTML = converterOut();
+  lastMainHtml = "";
 }
 function runtimeMessage() {
   return '<div class="boot"><h2>Speicher nicht verfügbar</h2><p>Dieser Browser lässt Kassensturz gerade keine Daten speichern' + (S.bootError ? " (" + esc(S.bootError) + ")" : "") + '. Das passiert z. B. im privaten Surfmodus. Öffne Kassensturz in einem normalen Safari-Fenster oder direkt über das App-Icon auf deinem Home-Bildschirm.</p><p><button class="btn btn-primary" type="button" onclick="location.reload()">Neu laden</button></p></div>';
@@ -238,7 +283,7 @@ function heroHtml() {
     const ch = S.ui.chart;
     const ranges = ["1M", "3M", "6M", "1J", "Alles"].map((r) => '<button type="button" data-act="chart-range" data-v="' + r + '" aria-pressed="' + (ch.range === r) + '">' + r + "</button>").join("");
     const modes = [["total", "Gesamt"], ["cur", "Assets"]].map(([k, l]) => '<button type="button" data-act="chart-mode" data-v="' + k + '" aria-pressed="' + (ch.mode === k) + '">' + l + "</button>").join("");
-    area = '<div class="chart-area"><div class="chart" id="chart-nw"></div></div>' +
+    area = '<div class="chart-area"><div class="chart" id="chart-nw"' + (lastChartH && !ch.table ? ' style="min-height:' + lastChartH + 'px"' : "") + "></div></div>" +
       '<div class="chart-foot"><div class="seg mini" role="group" aria-label="Zeitraum">' + ranges + "</div>" +
       '<div style="display:flex;gap:6px;align-items:center"><div class="seg mini" role="group" aria-label="Ansicht">' + modes + "</div>" +
       '<button class="icon-btn sm' + (ch.table ? " filled" : "") + '" type="button" data-act="chart-table" aria-pressed="' + ch.table + '" aria-label="Als Tabelle zeigen" title="Tabelle">' + icon("table", "sm") + "</button></div></div>";

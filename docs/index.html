@@ -755,7 +755,7 @@ table.data th { position: sticky; top: 0; background: var(--panel-2); font-weigh
    ====================================================================== */
 
 /* ---------- App-Version (wird beim Bauen eingesetzt) ---------- */
-const APP = { version: "1.0.0", build: "593ff8bc6e", date: "2026-10-04" };
+const APP = { version: "1.0.1", build: "8ecae2b2b7", date: "2026-10-04" };
 
 /* ---------- Konstanten ---------- */
 const CURS = ["EUR", "USDT", "BTC"];
@@ -1870,6 +1870,14 @@ async function loadDemo() {
    ====================================================================== */
 const CHANGELOG = [
   {
+    v: "1.0.1",
+    date: "2026-10-04",
+    items: [
+      "Kein Hochspringen mehr: Umrechner, Diagramm-Umschalter, Zeitraum und Aufteilung bleiben beim Tippen an ihrer Stelle",
+      "Neue Kurse im Hintergrund verschieben die Seite nicht mehr und unterbrechen keine Eingabe",
+    ],
+  },
+  {
     v: "1.0.0",
     date: "2026-10-04",
     items: [
@@ -1974,7 +1982,10 @@ function needsWelcome() {
   if (app && app.onboarded) return false;
   return !S.data.accounts.size && !S.data.tx.size && !S.data.goals.size && !S.data.fixed.size;
 }
-function renderMain() {
+let renderDeferred = false;
+let renderedRoute = "";
+/** Baut den Hauptbereich neu auf. passive = von selbst ausgelöst (neue Kurse, Daten), nicht durch einen Tipp. */
+function renderMain(passive) {
   const main = $("#main");
   if (S.runtime === "pending") return;
   if (S.runtime !== "ok") {
@@ -1983,7 +1994,17 @@ function renderMain() {
     return;
   }
   const ae = document.activeElement;
-  const keep = ae && main.contains(ae) && ae.id ? { id: ae.id, s: ae.selectionStart, e: ae.selectionEnd } : null;
+  const typing = !!(ae && main.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName));
+  if (passive && typing) {
+    // Während getippt wird nichts austauschen (sonst springt die Tastatur bzw. die Seite) – danach nachholen
+    if (!renderDeferred) {
+      renderDeferred = true;
+      ae.addEventListener("blur", () => { renderDeferred = false; scheduleRender(); }, { once: true });
+    }
+    return;
+  }
+  const keep = typing && ae.id ? { id: ae.id, s: ae.selectionStart, e: ae.selectionEnd } : null;
+  const scrollY0 = window.scrollY;
   const scrollers = $$("[data-keep-scroll]", main).map((el) => [el.dataset.keepScroll, el.scrollTop, el.scrollLeft]);
   let html;
   if (needsWelcome()) html = welcomeHtml();
@@ -2007,6 +2028,38 @@ function renderMain() {
     }
   }
   afterRender();
+  const routeChanged = renderedRoute !== S.ui.route;
+  renderedRoute = S.ui.route;
+  if (routeChanged) window.scrollTo(0, 0);
+  else keepScroll(scrollY0);
+}
+/** Safari hat keine Scroll-Verankerung: Position nach dem Neuaufbau ausdrücklich halten. */
+function keepScroll(y) {
+  if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
+  requestAnimationFrame(() => { if (Math.abs(window.scrollY - y) > 1 && document.documentElement.scrollHeight - window.innerHeight >= y) window.scrollTo(0, y); });
+}
+/** Nur die Vermögenskarte neu zeichnen (Diagramm-Umschalter, Zeitraum, Aufteilung …). */
+function renderHero() {
+  const old = $("#main .hero");
+  if (!old) { renderMain(); return; }
+  const y = window.scrollY;
+  const t = document.createElement("div");
+  t.innerHTML = heroHtml();
+  old.replaceWith(t.firstElementChild);
+  lastMainHtml = "";
+  drawNetWorthChart();
+  keepScroll(y);
+}
+/** Nur den Umrechner aktualisieren – das Eingabefeld bleibt, wie es ist. */
+function renderConverter() {
+  const box = $("#main .conv");
+  if (!box) { renderMain(); return; }
+  const inp = $("#conv-amt");
+  if (inp && inp.value !== S.ui.conv.amt) inp.value = S.ui.conv.amt;
+  for (const b of $$('[data-act="conv-cur"]', box)) b.setAttribute("aria-pressed", String(b.dataset.cur === S.ui.conv.cur));
+  const out = $("#conv-out");
+  if (out) out.innerHTML = converterOut();
+  lastMainHtml = "";
 }
 function runtimeMessage() {
   return '<div class="boot"><h2>Speicher nicht verfügbar</h2><p>Dieser Browser lässt Kassensturz gerade keine Daten speichern' + (S.bootError ? " (" + esc(S.bootError) + ")" : "") + '. Das passiert z. B. im privaten Surfmodus. Öffne Kassensturz in einem normalen Safari-Fenster oder direkt über das App-Icon auf deinem Home-Bildschirm.</p><p><button class="btn btn-primary" type="button" onclick="location.reload()">Neu laden</button></p></div>';
@@ -2124,7 +2177,7 @@ function heroHtml() {
     const ch = S.ui.chart;
     const ranges = ["1M", "3M", "6M", "1J", "Alles"].map((r) => '<button type="button" data-act="chart-range" data-v="' + r + '" aria-pressed="' + (ch.range === r) + '">' + r + "</button>").join("");
     const modes = [["total", "Gesamt"], ["cur", "Assets"]].map(([k, l]) => '<button type="button" data-act="chart-mode" data-v="' + k + '" aria-pressed="' + (ch.mode === k) + '">' + l + "</button>").join("");
-    area = '<div class="chart-area"><div class="chart" id="chart-nw"></div></div>' +
+    area = '<div class="chart-area"><div class="chart" id="chart-nw"' + (lastChartH && !ch.table ? ' style="min-height:' + lastChartH + 'px"' : "") + "></div></div>" +
       '<div class="chart-foot"><div class="seg mini" role="group" aria-label="Zeitraum">' + ranges + "</div>" +
       '<div style="display:flex;gap:6px;align-items:center"><div class="seg mini" role="group" aria-label="Ansicht">' + modes + "</div>" +
       '<button class="icon-btn sm' + (ch.table ? " filled" : "") + '" type="button" data-act="chart-table" aria-pressed="' + ch.table + '" aria-label="Als Tabelle zeigen" title="Tabelle">' + icon("table", "sm") + "</button></div></div>";
@@ -2653,6 +2706,7 @@ function xTicks(first, last, width) {
   return out;
 }
 let chartUid = 0;
+let lastChartH = 0; // reservierte Höhe, damit beim Neuzeichnen nichts zusammenfällt
 function drawNetWorthChart() {
   const host = $("#chart-nw");
   if (!host) return;
@@ -2668,6 +2722,7 @@ function drawNetWorthChart() {
   }
   const W = Math.max(280, Math.round(host.clientWidth || 600));
   const H = W < 520 ? 196 : 256;
+  lastChartH = H;
   const M = { l: 46, r: 10, t: 12, b: 26 };
   const iw = W - M.l - M.r, ih = H - M.t - M.b;
   const first = pts[0].date, last = pts[pts.length - 1].date;
@@ -3928,7 +3983,7 @@ function scheduleRender() {
 }
 function renderAll() {
   renderShell();
-  renderMain();
+  renderMain(true);
 }
 function afterRender() {
   drawNetWorthChart();
@@ -3941,8 +3996,8 @@ window.addEventListener("hashchange", () => {
   const r = routeFromHash();
   if (r !== S.ui.route) {
     S.ui.route = r;
-    renderAll();
-    window.scrollTo({ top: 0 });
+    renderShell();
+    renderMain(); // neue Seite beginnt oben (siehe renderMain)
   }
 });
 
@@ -4033,14 +4088,14 @@ const ACTIONS = {
       if (conv != null && el.dataset.cur !== c.cur) c.amt = fmtNum(conv, 0, el.dataset.cur === "BTC" ? 8 : 2).replace(/\./g, "");
     }
     c.cur = el.dataset.cur;
-    renderMain();
+    renderConverter();
   },
-  "chart-view": (el) => { S.ui.chart.view = el.dataset.v; S.ui.chart.focus = null; setUiPref("chartView", el.dataset.v); renderMain(); },
-  "alloc-by": (el) => { S.ui.chart.allocBy = el.dataset.v; S.ui.chart.focus = null; setUiPref("allocBy", el.dataset.v); renderMain(); },
-  "alloc-focus": (el) => { const k = el.dataset.key; S.ui.chart.focus = S.ui.chart.focus === k ? null : k; renderMain(); },
-  "chart-range": (el) => { S.ui.chart.range = el.dataset.v; setUiPref("chartRange", el.dataset.v); renderMain(); },
-  "chart-mode": (el) => { S.ui.chart.mode = el.dataset.v; renderMain(); },
-  "chart-table": () => { S.ui.chart.table = !S.ui.chart.table; renderMain(); },
+  "chart-view": (el) => { S.ui.chart.view = el.dataset.v; S.ui.chart.focus = null; setUiPref("chartView", el.dataset.v); renderHero(); },
+  "alloc-by": (el) => { S.ui.chart.allocBy = el.dataset.v; S.ui.chart.focus = null; setUiPref("allocBy", el.dataset.v); renderHero(); },
+  "alloc-focus": (el) => { const k = el.dataset.key; S.ui.chart.focus = S.ui.chart.focus === k ? null : k; renderHero(); },
+  "chart-range": (el) => { S.ui.chart.range = el.dataset.v; setUiPref("chartRange", el.dataset.v); renderHero(); },
+  "chart-mode": (el) => { S.ui.chart.mode = el.dataset.v; renderHero(); },
+  "chart-table": () => { S.ui.chart.table = !S.ui.chart.table; renderHero(); },
   "tx-month": (el) => { S.ui.tx.month = el.dataset.v; renderMain(); },
   "tx-month-step": (el) => { S.ui.tx.month = addMonthKey(S.ui.tx.month === "all" ? monthKey(isoDate()) : S.ui.tx.month, +el.dataset.v); renderMain(); },
   "tx-reset": () => { S.ui.tx = { month: monthKey(isoDate()), acc: "", cat: "", kind: "", q: "" }; renderMain(); },
