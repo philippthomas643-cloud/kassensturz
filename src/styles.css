@@ -704,8 +704,31 @@ table.data th { position: sticky; top: 0; background: var(--panel-2); font-weigh
 .scan-row .scan-c { grid-area: c; color: var(--ink-2); }
 .scan-row .scan-note { grid-area: n; font-size: 12px; color: var(--ink-3); padding-left: 6px; }
 .scan-row .scan-note:empty { display: none; }
-.scan-row.dup { opacity: .55; }
-.scan-row.dup .scan-note { color: var(--warn); }
+.scan-row.off > .scan-in, .scan-row.off > .scan-sign { opacity: .5; }
+.scan-dupx { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-3); }
+.scan-dupx svg { width: 14px; height: 14px; }
+.scan-row.ask .scan-note { display: flex; align-items: center; justify-content: space-between; gap: 8px 10px; flex-wrap: wrap; margin-top: 4px; padding: 8px 8px 8px 10px; border-radius: 12px; background: color-mix(in srgb, var(--st-warn) 10%, var(--panel)); color: var(--ink-2); font-size: 12.5px; }
+.scan-dupq { display: flex; gap: 6px; align-items: flex-start; min-width: 0; flex: 1 1 180px; }
+.scan-dupq svg { flex: none; width: 15px; height: 15px; margin-top: 1px; color: var(--warn); }
+.scan-dupa { flex: none; }
+.scan-dupa button { height: 28px; font-size: 12.5px; }
+/* Doppelbuchungen */
+.tag.warn { background: color-mix(in srgb, var(--st-warn) 18%, var(--panel)); color: var(--warn); }
+.dup-q { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 620; color: var(--warn); }
+.dup-q svg { width: 15px; height: 15px; }
+.dup-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 16px; background: var(--panel-2); }
+.dup-card .dup-ok { align-self: flex-start; margin-top: 2px; background: var(--panel); border-color: var(--line-strong); }
+.dup-tx { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px 10px; align-items: center; padding: 8px 10px; border-radius: 12px; background: var(--panel); }
+.dup-tx .t { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.dup-tx .sub { font-size: 12px; color: var(--ink-3); }
+.dup-tx .amt { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dup-tx .amt.pos { color: var(--pos); }
+.dup-tx .btn { padding: 0 8px; }
+@media (max-width: 420px) { .dup-tx .btn { grid-column: 1 / -1; justify-self: start; margin-left: -8px; } }
+.dup-ask { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--st-warn) 50%, var(--line)); background: color-mix(in srgb, var(--st-warn) 9%, var(--panel)); }
+.dup-ask .dup-tx { grid-template-columns: minmax(0, 1fr) auto; }
+.dup-ask p { margin: 0; font-size: 14px; }
+@media (prefers-reduced-motion: no-preference) { .dup-ask { animation: dupIn .25s ease; } @keyframes dupIn { from { opacity: 0; transform: translateY(-4px); } } }
 .scan-in { width: 100%; min-width: 0; height: 36px; padding: 0 8px; border: 1px solid transparent; border-radius: 9px; background: var(--panel-2); color: var(--ink); font-size: 16px; }
 .scan-in:focus { outline: none; border-color: var(--focus); background: var(--panel); }
 .scan-in.scan-d, .scan-in.scan-c { background: transparent; font-size: 16px; height: 32px; }

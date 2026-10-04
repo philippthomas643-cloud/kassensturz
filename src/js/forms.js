@@ -18,7 +18,7 @@ function openModal(o) {
   if (o.onMount) o.onMount(form);
   modalCleanup = o.onClose || null;
   const first = form.querySelector("[autofocus]") || (window.innerWidth > 600 ? form.querySelector(".modal-b input:not([type=hidden]):not([type=checkbox]), .modal-b select") : null);
-  if (first) setTimeout(() => first.focus(), 30);
+  if (first) setTimeout(() => { if (!form.contains(document.activeElement)) first.focus(); }, 30); // schon getippt? Fokus nicht wegnehmen
   else setTimeout(() => form.querySelector("#m-title") && form.focus && form.focus(), 30);
   return form;
 }
@@ -386,7 +386,23 @@ function openTxForm(o = {}) {
         doc.createdAt = Date.now();
         if (rc) doc.source = "receipt";
         const id = fixedId && pre.due ? fixedTxId(fixedId, pre.due) : newId("tx");
-        await dbWrite("tx", id, "set", doc);
+        // Gleicher Betrag kurz vorher schon gebucht (und keine Fixkosten)? Erst nachfragen.
+        const cands = !fixedId && k !== "transfer" ? dupCandidates(doc) : [];
+        const sig = [k, cents(doc.amount), date, acc, doc.note].join("|");
+        if (cands.length && f.dataset.dupSig !== sig) {
+          f.dataset.dupSig = sig;
+          const old = f.querySelector("#tx-dup");
+          if (old) old.remove();
+          f.querySelector(".modal-b").insertAdjacentHTML("afterbegin", dupAskHtml(cands));
+          f.querySelector(".modal-b").scrollTop = 0;
+          const cancel = f.querySelector('.modal-f [data-act="close-modal"]');
+          if (cancel) { cancel.dataset.act = "dup-skip"; cancel.textContent = "Doppelt – nicht buchen"; }
+          f.querySelector("#tx-save").textContent = "Richtig – buchen";
+          return;
+        }
+        const ops = [["tx", id, "set", doc]];
+        if (cands.length) ops.push(...dupOkOps(cands.map((x) => dupPairKey(id, x.id))));
+        await dbBatch(ops);
         if (rc) dbWrite("meta", "app", "update", { lastReceiptAcc: acc }).catch(() => {});
         closeModal();
         toast(k === "transfer" ? "Umbuchung gespeichert" : k === "income" ? "Einnahme gebucht" : "Ausgabe gebucht");

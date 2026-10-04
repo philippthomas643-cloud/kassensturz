@@ -20,6 +20,7 @@ Als App auf dem iPhone, läuft offline, deine Daten bleiben auf deinem Gerät.</
 - **Fixkosten** mit Fälligkeiten und Ein-Tipp-Buchung, **Budgets** pro Kategorie, **Vermögens- und Sparziele**
 - **Meldungen** in der App bei 50, 75, 90 und 100 %, Wochenrückblick und Kursrutsch-Warnung
 - **Scannen:** Screenshots aus der Banking-App (z. B. Revolut) einlesen – Umsätze, Kontostand und geplante Zahlungen werden erkannt; **Kassenzettel** fotografieren – Geschäft, Datum und Summe werden übernommen. Die Texterkennung läuft auf dem Gerät.
+- **Doppelbuchungen**: gleicher Betrag kurz hintereinander (ohne Fixkosten)? Die App fragt nach – doppelt oder richtig
 - **Backup** als Datei über das Teilen-Menü (z. B. in iCloud Drive), CSV-Export der Buchungen
 - Hell- und Dunkelmodus, läuft offline, aktualisiert sich selbst
 

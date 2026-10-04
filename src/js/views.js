@@ -183,6 +183,13 @@ function banners() {
         '<div class="b-act"><button class="btn btn-sm" type="button" data-act="clear-demo">Löschen</button></div></div>';
     }
   }
+  if ((S.ui.route === "uebersicht" || S.ui.route === "buchungen") && allLoaded()) {
+    const n = dupPairs().length;
+    if (n) {
+      h += '<div class="banner warn compact dup-banner"><div class="b-txt">' + icon("alert") + "<span><b>" + (n === 1 ? "Mögliche Doppelbuchung" : n + " mögliche Doppelbuchungen") + "</b> – gleicher Betrag kurz hintereinander. Doppelt oder richtig?</span></div>" +
+        '<div class="b-act"><button class="btn btn-sm btn-primary" type="button" data-act="dup-review">Prüfen</button></div></div>';
+    }
+  }
   const d = derive();
   if (d.missing.length && allLoaded()) {
     h += '<div class="banner warn"><div class="b-txt">' + icon("alert") + "<span>Für " + d.missing.join(" und ") + " fehlt noch ein Kurs, deshalb fehlen diese Konten in der Euro-Summe. Sobald du online bist, kommt er automatisch – oder du trägst ihn selbst ein.</span></div>" +
@@ -546,7 +553,7 @@ function txRow(t, compact) {
   }
   const when = compact ? fmtDay(t.date) + " · " : "";
   return '<div class="row tx-row clickable" data-act="edit-tx" data-id="' + esc(t.id) + '" role="button" tabindex="0">' + glyph +
-    '<div><div class="t">' + txTitle(t) + demoTag(t) + '</div><div class="sub">' + when + sub + "</div></div>" +
+    '<div><div class="t">' + txTitle(t) + demoTag(t) + (t.kind !== "transfer" && t.kind !== "adjust" && isDupSuspect(t.id) ? '<span class="tag warn">doppelt?</span>' : "") + '</div><div class="sub">' + when + sub + "</div></div>" +
     '<div class="amt">' + amt + "</div></div>";
 }
 VIEWS.buchungen = function () {

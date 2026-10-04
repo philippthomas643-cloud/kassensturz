@@ -731,8 +731,31 @@ table.data th { position: sticky; top: 0; background: var(--panel-2); font-weigh
 .scan-row .scan-c { grid-area: c; color: var(--ink-2); }
 .scan-row .scan-note { grid-area: n; font-size: 12px; color: var(--ink-3); padding-left: 6px; }
 .scan-row .scan-note:empty { display: none; }
-.scan-row.dup { opacity: .55; }
-.scan-row.dup .scan-note { color: var(--warn); }
+.scan-row.off > .scan-in, .scan-row.off > .scan-sign { opacity: .5; }
+.scan-dupx { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-3); }
+.scan-dupx svg { width: 14px; height: 14px; }
+.scan-row.ask .scan-note { display: flex; align-items: center; justify-content: space-between; gap: 8px 10px; flex-wrap: wrap; margin-top: 4px; padding: 8px 8px 8px 10px; border-radius: 12px; background: color-mix(in srgb, var(--st-warn) 10%, var(--panel)); color: var(--ink-2); font-size: 12.5px; }
+.scan-dupq { display: flex; gap: 6px; align-items: flex-start; min-width: 0; flex: 1 1 180px; }
+.scan-dupq svg { flex: none; width: 15px; height: 15px; margin-top: 1px; color: var(--warn); }
+.scan-dupa { flex: none; }
+.scan-dupa button { height: 28px; font-size: 12.5px; }
+/* Doppelbuchungen */
+.tag.warn { background: color-mix(in srgb, var(--st-warn) 18%, var(--panel)); color: var(--warn); }
+.dup-q { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 620; color: var(--warn); }
+.dup-q svg { width: 15px; height: 15px; }
+.dup-card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 16px; background: var(--panel-2); }
+.dup-card .dup-ok { align-self: flex-start; margin-top: 2px; background: var(--panel); border-color: var(--line-strong); }
+.dup-tx { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px 10px; align-items: center; padding: 8px 10px; border-radius: 12px; background: var(--panel); }
+.dup-tx .t { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.dup-tx .sub { font-size: 12px; color: var(--ink-3); }
+.dup-tx .amt { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dup-tx .amt.pos { color: var(--pos); }
+.dup-tx .btn { padding: 0 8px; }
+@media (max-width: 420px) { .dup-tx .btn { grid-column: 1 / -1; justify-self: start; margin-left: -8px; } }
+.dup-ask { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--st-warn) 50%, var(--line)); background: color-mix(in srgb, var(--st-warn) 9%, var(--panel)); }
+.dup-ask .dup-tx { grid-template-columns: minmax(0, 1fr) auto; }
+.dup-ask p { margin: 0; font-size: 14px; }
+@media (prefers-reduced-motion: no-preference) { .dup-ask { animation: dupIn .25s ease; } @keyframes dupIn { from { opacity: 0; transform: translateY(-4px); } } }
 .scan-in { width: 100%; min-width: 0; height: 36px; padding: 0 8px; border: 1px solid transparent; border-radius: 9px; background: var(--panel-2); color: var(--ink); font-size: 16px; }
 .scan-in:focus { outline: none; border-color: var(--focus); background: var(--panel); }
 .scan-in.scan-d, .scan-in.scan-c { background: transparent; font-size: 16px; height: 32px; }
@@ -794,7 +817,7 @@ table.data th { position: sticky; top: 0; background: var(--panel-2); font-weigh
    ====================================================================== */
 
 /* ---------- App-Version (wird beim Bauen eingesetzt) ---------- */
-const APP = { version: "1.1.0", build: "f7f29d99a6", date: "2026-10-05" };
+const APP = { version: "1.2.0", build: "76cb0e82e7", date: "2026-10-05" };
 
 /* ---------- Konstanten ---------- */
 const CURS = ["EUR", "USDT", "BTC"];
@@ -1912,6 +1935,15 @@ async function loadDemo() {
    ====================================================================== */
 const CHANGELOG = [
   {
+    v: "1.2.0",
+    date: "2026-10-05",
+    items: [
+      "Neu: Doppelbuchungen erkennen – buchst du den gleichen Betrag kurz hintereinander noch mal, fragt die App nach: doppelt oder richtig?",
+      "Gilt auch für Kassenzettel und Screenshots; Fixkosten sind ausgenommen",
+      "Schon vorhandene Verdachtsfälle zeigt die Übersicht an – mit einem Tipp löschen oder als richtig markieren",
+    ],
+  },
+  {
     v: "1.1.0",
     date: "2026-10-05",
     items: [
@@ -1942,6 +1974,138 @@ const CHANGELOG = [
     ],
   },
 ];
+
+/* ===== dupes.js ===== */
+/* ======================================================================
+   Mögliche Doppelbuchungen: gleicher Betrag (Ausgabe bzw. Einnahme), höchstens
+   DUP_DAYS Tage auseinander, auf demselben Konto oder mit ähnlicher Beschreibung –
+   und nicht als Fixkosten gebucht. Die App fragt nach; „Beide richtig“ wird in
+   meta/app.dupOk gemerkt und nicht wieder gefragt.
+   ====================================================================== */
+const DUP_DAYS = 3;
+const cents = (v) => Math.round(Math.abs(+v || 0) * 100);
+function isFixedLike(t) {
+  if (t.fixedId) return true;
+  const n = String(t.note || "").toLowerCase().trim();
+  if (!n) return false;
+  for (const f of S.data.fixed.values()) {
+    if (f.active === false || String(f.name || "").toLowerCase().trim() !== n) continue;
+    if (Math.abs(cents(f.amount) - cents(t.amount)) <= Math.max(100, cents(f.amount) * 0.05)) return true;
+  }
+  return false;
+}
+function noteWords(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9äöüß ]/g, " ").split(/\s+/).filter((w) => w.length >= 3); }
+function similarNote(a, b) {
+  const A = noteWords(a), B = noteWords(b);
+  return A.length > 0 && B.length > 0 && A.some((w) => B.some((v) => v.includes(w) || w.includes(v)));
+}
+function dupPairKey(a, b) { return [a, b].sort().join("|"); }
+function dupOkSet() { return new Set(((S.data.meta.get("app") || {}).dupOk) || []); }
+/** Sind a und b verdächtig ähnlich? (ohne Blick auf „schon bestätigt“) */
+function looksDuplicate(a, b) {
+  if (a.kind !== b.kind || !(a.kind === "expense" || a.kind === "income")) return false;
+  if (!(cents(a.amount) > 0) || cents(a.amount) !== cents(b.amount)) return false;
+  if (!a.date || !b.date || Math.abs(daysBetween(a.date, b.date)) > DUP_DAYS) return false;
+  if (a.date === b.date && a.time && b.time && a.time !== b.time && a.source === "scan" && b.source === "scan") return false; // Bank listet beide mit eigener Uhrzeit
+  if (a.accountId !== b.accountId && !similarNote(a.note, b.note)) return false;
+  return !isFixedLike(a) && !isFixedLike(b);
+}
+/** Bestehende Buchungen, die zu einer (neuen) Buchung t passen könnten. */
+function dupCandidates(t) {
+  const ok = dupOkSet();
+  const out = [];
+  for (const x of S.data.tx.values()) {
+    if (x.id === t.id || x.demo) continue;
+    if (t.id && ok.has(dupPairKey(t.id, x.id))) continue;
+    if (looksDuplicate(t, x)) out.push(x);
+  }
+  return out.sort((a, b) => Math.abs(daysBetween(a.date, t.date)) - Math.abs(daysBetween(b.date, t.date)));
+}
+/** Alle offenen Verdachtsfälle im Bestand (für Hinweis und Prüfliste). */
+let dupMemo = { v: -1, pairs: [], ids: new Set() };
+function dupPairs() {
+  if (dupMemo.v === DATA_V) return dupMemo.pairs;
+  const ok = dupOkSet();
+  const groups = new Map();
+  for (const t of S.data.tx.values()) {
+    if (t.demo || !(t.kind === "expense" || t.kind === "income") || !t.date) continue;
+    const k = t.kind + "|" + cents(t.amount);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(t);
+  }
+  const pairs = [];
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    list.sort((a, b) => a.date.localeCompare(b.date));
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const a = list[i], b = list[j];
+        if (daysBetween(a.date, b.date) > DUP_DAYS) break;
+        const key = dupPairKey(a.id, b.id);
+        if (!ok.has(key) && looksDuplicate(a, b)) pairs.push({ a, b, key });
+      }
+    }
+  }
+  pairs.sort((x, y) => (y.b.date || "").localeCompare(x.b.date || ""));
+  const ids = new Set();
+  for (const p of pairs) { ids.add(p.a.id); ids.add(p.b.id); }
+  dupMemo = { v: DATA_V, pairs, ids };
+  return pairs;
+}
+function isDupSuspect(id) { dupPairs(); return dupMemo.ids.has(id); }
+function dupOkOps(keys) {
+  const app = S.data.meta.get("app") || {};
+  const set = new Set(app.dupOk || []);
+  for (const k of keys) set.add(k);
+  return [["meta", "app", "update", { dupOk: Array.from(set).slice(-500) }]];
+}
+
+/* ---------- Prüfen-Dialog ---------- */
+function dupTxLine(t, withDel = true) {
+  const a = S.data.accounts.get(t.accountId);
+  const cur = a ? a.currency : "EUR";
+  return '<div class="dup-tx"><div><div class="t">' + txTitle(t) + '</div><div class="sub">' + fmtDay(t.date) + (t.time ? ", " + esc(t.time) : "") + " · " + accName(t.accountId) + (t.category ? " · " + esc(t.category) : "") + (t.source === "scan" ? " · Screenshot" : t.source === "receipt" ? " · Kassenzettel" : "") + "</div></div>" +
+    '<div class="amt ' + (t.kind === "income" ? "pos" : "") + '">' + fmtAmt(t.kind === "income" ? Math.abs(t.amount) : -Math.abs(t.amount), cur, { sign: t.kind === "income" }) + "</div>" +
+    (withDel ? '<button class="btn btn-sm btn-ghost btn-danger" type="button" data-act="dup-del" data-id="' + esc(t.id) + '">' + icon("trash", "sm") + "Löschen</button>" : "") + "</div>";
+}
+/** Hinweis im Buchungsformular, bevor ein gleicher Betrag ein zweites Mal gebucht wird. */
+function dupAskHtml(cands) {
+  return '<div class="dup-ask" id="tx-dup" role="alert"><div class="dup-q">' + icon("alert", "sm") + (cands.length === 1 ? "Gleicher Betrag ist schon gebucht" : "Gleicher Betrag ist schon " + cands.length + "× gebucht") + "</div>" +
+    cands.slice(0, 3).map((x) => dupTxLine(x, false)).join("") +
+    '<p>Ist das eine <b>Doppelbuchung</b> – oder stimmt es so?</p></div>';
+}
+function openDupReview() {
+  const pairs = dupPairs();
+  if (!pairs.length) { closeModal(); toast("Keine möglichen Doppelbuchungen mehr"); return; }
+  const body = '<p class="muted" style="margin:0;font-size:14px">Gleicher Betrag, kurz hintereinander und keine Fixkosten. Ist das doppelt gebucht – oder stimmt das so?</p>' +
+    pairs.slice(0, 20).map((p) => {
+      const d = Math.abs(daysBetween(p.a.date, p.b.date));
+      return '<div class="dup-card"><div class="dup-q">' + icon("alert", "sm") + (d === 0 ? "Gleicher Tag" : d === 1 ? "1 Tag auseinander" : d + " Tage auseinander") + "</div>" +
+        dupTxLine(p.b) + dupTxLine(p.a) +
+        '<button class="btn btn-sm dup-ok" type="button" data-act="dup-ok" data-key="' + esc(p.key) + '">' + icon("check", "sm") + "Beide richtig</button></div>";
+    }).join("") + (pairs.length > 20 ? '<p class="faint" style="margin:0">… und ' + (pairs.length - 20) + " weitere</p>" : "");
+  openModal({ title: pairs.length === 1 ? "Mögliche Doppelbuchung" : pairs.length + " mögliche Doppelbuchungen", wide: true, body, foot: '<button class="btn btn-primary" type="button" data-act="close-modal">Fertig</button>' });
+}
+function reopenDupReview() {
+  const b = $("#modal-host .modal-b");
+  const top = b ? b.scrollTop : 0;
+  openDupReview();
+  const nb = $("#modal-host .modal-b");
+  if (nb && top) nb.scrollTop = top;
+}
+async function dupDelete(id) {
+  const t = S.data.tx.get(id);
+  if (!t) return;
+  const backup = stripId(t);
+  await dbWrite("tx", id, "delete");
+  toast("Doppelte Buchung gelöscht", { action: "Rückgängig", onAction: () => dbWrite("tx", id, "set", backup) });
+  reopenDupReview();
+}
+async function dupConfirm(key) {
+  await dbBatch(dupOkOps([key]));
+  toast("Gemerkt – beide Buchungen bleiben");
+  reopenDupReview();
+}
 
 /* ===== scanparse.js ===== */
 /* ======================================================================
@@ -2440,17 +2604,20 @@ function learnedCategory(merchant, kind) {
   }
   return SCANPARSE.guessCategory(merchant, kind) || "Sonstiges";
 }
-function findDuplicate(t, accId) {
+/** Schon gebucht? exact = derselbe Umsatz wurde schon mal per Screenshot übernommen; sonst ähnliche Buchungen (siehe dupes.js). */
+function scanDup(t, accVal) {
   const key = scanKey(t);
-  const cents = Math.round(t.amount * 100);
-  for (const x of S.data.tx.values()) {
-    if (x.importKey === key) return x;
-    if (x.accountId !== accId || x.kind !== t.kind) continue;
-    if (Math.round(Math.abs(x.amount) * 100) !== cents) continue;
-    if (Math.abs(daysBetween(x.date, t.date)) > 1) continue;
-    return x;
-  }
-  return null;
+  for (const x of S.data.tx.values()) if (x.importKey === key) return { exact: true, cands: [x] };
+  const probe = { kind: t.kind, amount: t.amount, date: t.date, time: t.time, accountId: accVal && !String(accVal).startsWith("new:") ? accVal : "", note: t.merchant, source: "scan" };
+  const cands = dupCandidates(probe);
+  return cands.length ? { exact: false, cands } : null;
+}
+function scanDupNote(i, d, checked) {
+  const x = d.cands[0];
+  if (d.exact) return '<span class="scan-dupx">' + icon("check", "sm") + "Schon übernommen" + (checked ? " – wird trotzdem nochmal gebucht" : "") + "</span>";
+  return '<span class="scan-dupq">' + icon("alert", "sm") + "<span>" + (d.exact ? "Schon übernommen" : "Gleicher Betrag schon gebucht") + ": " + txTitle(x) + " · " + fmtDay(x.date) + (x.accountId ? " · " + accName(x.accountId) : "") + "</span></span>" +
+    '<span class="seg scan-dupa" role="group" aria-label="Doppelt oder richtig?"><button type="button" data-dupans="dup" data-i="' + i + '" aria-pressed="' + !checked + '">Doppelt</button>' +
+    '<button type="button" data-dupans="ok" data-i="' + i + '" aria-pressed="' + checked + '">Richtig</button></span>';
 }
 function suggestFixed(merged) {
   const out = [];
@@ -2498,17 +2665,18 @@ function openScanReview(merged) {
   }
   const accOpts = (newOpt ? '<option value="' + esc(newOpt) + '"' + (accDefault === newOpt ? " selected" : "") + ">+ Neues Konto „" + esc(bank) + "“</option>" : "") +
     accs.map((a) => '<option value="' + esc(a.id) + '"' + (a.id === accDefault ? " selected" : "") + ">" + esc(a.name) + " · " + a.currency + "</option>").join("");
+  const dups = txs.map((t) => scanDup(t, accDefault));
   const rowHtml = (t, i) => {
-    const dup = accDefault && !String(accDefault).startsWith("new:") ? findDuplicate(t, accDefault) : null;
+    const dup = dups[i];
     const neg = t.kind !== "income";
-    return '<div class="scan-row' + (dup ? " dup" : "") + '" data-i="' + i + '">' +
+    return '<div class="scan-row' + (dup ? " dup off" + (dup.exact ? "" : " ask") : "") + '" data-i="' + i + '">' +
       '<input type="checkbox" class="scan-ck" id="sc-ck-' + i + '"' + (dup ? "" : " checked") + ' aria-label="Übernehmen">' +
       '<input class="scan-in scan-m" id="sc-m-' + i + '" value="' + esc(t.merchant) + '" maxlength="60" aria-label="Händler">' +
       '<span class="scan-sign ' + (neg ? "" : "pos") + '">' + (neg ? "−" : "+") + "</span>" +
       '<input class="scan-in scan-a ' + (neg ? "" : "pos") + '" id="sc-a-' + i + '" inputmode="decimal" value="' + esc(fmtNum(t.amount, 2, 2)) + '" aria-label="Betrag">' +
       '<input class="scan-in scan-d" type="date" id="sc-d-' + i + '" value="' + esc(t.date) + '" aria-label="Datum">' +
       '<input class="scan-in scan-c" id="sc-c-' + i + '" list="dl-scan-cat" value="' + esc(learnedCategory(t.merchant, t.kind)) + '" aria-label="Kategorie">' +
-      '<span class="scan-note" id="sc-n-' + i + '">' + (dup ? "schon gebucht?" : t.time ? t.time + " Uhr" : "") + "</span></div>";
+      '<div class="scan-note" id="sc-n-' + i + '">' + (dup ? scanDupNote(i, dup, false) : t.time ? esc(t.time) + " Uhr" : "") + "</div></div>";
   };
   const body =
     '<p class="muted" style="margin:0;font-size:13.5px">' + (bank ? "<b>" + esc(bank) + "</b> erkannt · " : "") + txs.length + (txs.length === 1 ? " Umsatz" : " Umsätze") +
@@ -2526,16 +2694,24 @@ function openScanReview(merged) {
     onMount: (f) => {
       const upd = () => {
         const acc = val(f, "sc-acc");
-        // Duplikate fürs gewählte Konto neu prüfen
+        // Doppelte fürs gewählte Konto neu prüfen und nachfragen
         txs.forEach((t, i) => {
-          const dup = !acc.startsWith("new:") ? findDuplicate(t, acc) : null;
           const row = f.querySelector('.scan-row[data-i="' + i + '"]');
           if (!row) return;
-          const was = row.classList.contains("dup");
-          row.classList.toggle("dup", !!dup);
-          if (!!dup !== was) f.querySelector("#sc-ck-" + i).checked = !dup;
-          f.querySelector("#sc-n-" + i).textContent = dup ? "schon gebucht?" : t.time ? t.time + " Uhr" : "";
+          const ck = f.querySelector("#sc-ck-" + i);
+          if (acc !== dupAcc) {
+            const was = !!dups[i];
+            dups[i] = scanDup(t, acc);
+            if (!!dups[i] !== was) ck.checked = !dups[i];
+          }
+          row.classList.toggle("dup", !!dups[i]);
+          row.classList.toggle("ask", !!dups[i] && !dups[i].exact);
+          row.classList.toggle("off", !ck.checked);
+          const note = f.querySelector("#sc-n-" + i);
+          const html = dups[i] ? scanDupNote(i, dups[i], ck.checked) : t.time ? esc(t.time) + " Uhr" : "";
+          if (note.innerHTML !== html) note.innerHTML = html;
         });
+        dupAcc = acc;
         const n = $$(".scan-ck", f).filter((c) => c.checked).length;
         const fx = fixedSug.filter((x, i) => { const c = f.querySelector("#sc-fx-" + i); return c && c.checked; }).length;
         const bal = f.querySelector("#sc-bal");
@@ -2548,8 +2724,15 @@ function openScanReview(merged) {
           hint.textContent = "Stand vom " + fmtDate(balance.date, true) + (balance.time ? ", " + balance.time : "") + (plan.balanceNote ? " · " + plan.balanceNote : "");
         }
       };
+      let dupAcc = accDefault;
       f.addEventListener("change", upd);
       f.addEventListener("input", (e) => { if (e.target.classList.contains("scan-a")) upd(); });
+      f.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-dupans]");
+        if (!b) return;
+        f.querySelector("#sc-ck-" + b.dataset.i).checked = b.dataset.dupans === "ok";
+        upd();
+      });
       upd();
     },
     onSubmit: (f) => guarded(f.querySelector("#sc-save"), async () => {
@@ -2572,6 +2755,7 @@ function scanPlan(f, txs, balance, fixedSug, previewOnly) {
   const cur = isNew ? (txs[0] && txs[0].cur) || (balance && balance.cur) || "EUR" : acc.currency;
   const ops = [];
   const newTx = [];
+  const okPairs = [];
   let bad = false;
   txs.forEach((t, i) => {
     if (!f.querySelector("#sc-ck-" + i).checked) return;
@@ -2582,8 +2766,11 @@ function scanPlan(f, txs, balance, fixedSug, previewOnly) {
     const e = toEUR(amt, cur);
     const doc = { kind: t.kind, date, accountId: accId, amount: round(amt, cur === "BTC" ? 8 : 6), category: val(f, "sc-c-" + i) || "Sonstiges", note: merchant, eur: e == null ? null : round(e, 2), importKey: scanKey(t), source: "scan", createdAt: Date.now() + i };
     if (t.time) doc.time = t.time;
+    const id = newId("tx");
     newTx.push(doc);
-    ops.push(["tx", newId("tx"), "set", doc]);
+    ops.push(["tx", id, "set", doc]);
+    // Trotz gleichem Betrag übernommen = „richtig“ → nicht nochmal fragen
+    if (!previewOnly) for (const x of dupCandidates(Object.assign({}, doc, { accountId: isNew ? "" : accId }))) okPairs.push(dupPairKey(id, x.id));
   });
   if (bad && !previewOnly) return { error: "Mindestens ein Betrag ist keine gültige Zahl." };
   // Kontostand zum Zeitpunkt des Screenshots angleichen
@@ -2623,7 +2810,9 @@ function scanPlan(f, txs, balance, fixedSug, previewOnly) {
     ops.push(["fixed", newId("fx"), "set", { kind: "expense", name: s.name, amount: s.amount, currency: s.cur || cur, interval: "monthly", anchor: s.anchor, accountId: accId, category: learnedCategory(s.name, "expense"), active: true, createdAt: Date.now() }]);
   });
   const app = S.data.meta.get("app") || {};
-  if (SCAN_BANK) ops.push(["meta", "app", "update", { scanAccounts: Object.assign({}, app.scanAccounts || {}, { [SCAN_BANK]: accId }) }]);
+  const metaUpd = okPairs.length ? dupOkOps(okPairs)[0][3] : {};
+  if (SCAN_BANK) metaUpd.scanAccounts = Object.assign({}, app.scanAccounts || {}, { [SCAN_BANK]: accId });
+  if (Object.keys(metaUpd).length) ops.push(["meta", "app", "update", metaUpd]); // ein Update – zwei im selben Batch würden sich überschreiben
   const parts = [];
   if (newTx.length) parts.push(newTx.length + (newTx.length === 1 ? " Umsatz" : " Umsätze") + " gebucht");
   if (balance && balOn) parts.push(isNew ? "Konto „" + bankName + "“ angelegt" : Math.abs(adjust) >= 0.005 ? "Kontostand angeglichen" : "Kontostand stimmt");
@@ -2838,6 +3027,13 @@ function banners() {
     if (hasDemo()) {
       h += '<div class="banner compact"><div class="b-txt">' + icon("info") + "<span><b>Beispieldaten</b> – lösch sie, wenn du mit deinen eigenen Zahlen loslegst.</span></div>" +
         '<div class="b-act"><button class="btn btn-sm" type="button" data-act="clear-demo">Löschen</button></div></div>';
+    }
+  }
+  if ((S.ui.route === "uebersicht" || S.ui.route === "buchungen") && allLoaded()) {
+    const n = dupPairs().length;
+    if (n) {
+      h += '<div class="banner warn compact dup-banner"><div class="b-txt">' + icon("alert") + "<span><b>" + (n === 1 ? "Mögliche Doppelbuchung" : n + " mögliche Doppelbuchungen") + "</b> – gleicher Betrag kurz hintereinander. Doppelt oder richtig?</span></div>" +
+        '<div class="b-act"><button class="btn btn-sm btn-primary" type="button" data-act="dup-review">Prüfen</button></div></div>';
     }
   }
   const d = derive();
@@ -3203,7 +3399,7 @@ function txRow(t, compact) {
   }
   const when = compact ? fmtDay(t.date) + " · " : "";
   return '<div class="row tx-row clickable" data-act="edit-tx" data-id="' + esc(t.id) + '" role="button" tabindex="0">' + glyph +
-    '<div><div class="t">' + txTitle(t) + demoTag(t) + '</div><div class="sub">' + when + sub + "</div></div>" +
+    '<div><div class="t">' + txTitle(t) + demoTag(t) + (t.kind !== "transfer" && t.kind !== "adjust" && isDupSuspect(t.id) ? '<span class="tag warn">doppelt?</span>' : "") + '</div><div class="sub">' + when + sub + "</div></div>" +
     '<div class="amt">' + amt + "</div></div>";
 }
 VIEWS.buchungen = function () {
@@ -3713,7 +3909,7 @@ function openModal(o) {
   if (o.onMount) o.onMount(form);
   modalCleanup = o.onClose || null;
   const first = form.querySelector("[autofocus]") || (window.innerWidth > 600 ? form.querySelector(".modal-b input:not([type=hidden]):not([type=checkbox]), .modal-b select") : null);
-  if (first) setTimeout(() => first.focus(), 30);
+  if (first) setTimeout(() => { if (!form.contains(document.activeElement)) first.focus(); }, 30); // schon getippt? Fokus nicht wegnehmen
   else setTimeout(() => form.querySelector("#m-title") && form.focus && form.focus(), 30);
   return form;
 }
@@ -4081,7 +4277,23 @@ function openTxForm(o = {}) {
         doc.createdAt = Date.now();
         if (rc) doc.source = "receipt";
         const id = fixedId && pre.due ? fixedTxId(fixedId, pre.due) : newId("tx");
-        await dbWrite("tx", id, "set", doc);
+        // Gleicher Betrag kurz vorher schon gebucht (und keine Fixkosten)? Erst nachfragen.
+        const cands = !fixedId && k !== "transfer" ? dupCandidates(doc) : [];
+        const sig = [k, cents(doc.amount), date, acc, doc.note].join("|");
+        if (cands.length && f.dataset.dupSig !== sig) {
+          f.dataset.dupSig = sig;
+          const old = f.querySelector("#tx-dup");
+          if (old) old.remove();
+          f.querySelector(".modal-b").insertAdjacentHTML("afterbegin", dupAskHtml(cands));
+          f.querySelector(".modal-b").scrollTop = 0;
+          const cancel = f.querySelector('.modal-f [data-act="close-modal"]');
+          if (cancel) { cancel.dataset.act = "dup-skip"; cancel.textContent = "Doppelt – nicht buchen"; }
+          f.querySelector("#tx-save").textContent = "Richtig – buchen";
+          return;
+        }
+        const ops = [["tx", id, "set", doc]];
+        if (cands.length) ops.push(...dupOkOps(cands.map((x) => dupPairKey(id, x.id))));
+        await dbBatch(ops);
         if (rc) dbWrite("meta", "app", "update", { lastReceiptAcc: acc }).catch(() => {});
         closeModal();
         toast(k === "transfer" ? "Umbuchung gespeichert" : k === "income" ? "Einnahme gebucht" : "Ausgabe gebucht");
@@ -4839,6 +5051,10 @@ const ACTIONS = {
   "snooze-backup": () => { setUiPref("backupSnooze", String(Date.now() + 14 * 86400000)); renderMain(); },
   "edit-tx": (el) => openTxForm({ id: el.dataset.id }),
   "delete-tx": (el) => deleteTx(el.dataset.id),
+  "dup-review": () => openDupReview(),
+  "dup-del": (el) => guarded(null, () => dupDelete(el.dataset.id)),
+  "dup-ok": (el) => guarded(null, () => dupConfirm(el.dataset.key)),
+  "dup-skip": () => { closeModal(); toast("Nicht gebucht – war doppelt"); },
   "new-fixed": (el) => openFixedForm(null, el.dataset.kind),
   "edit-fixed": (el) => openFixedForm(el.dataset.id),
   "delete-fixed": (el) => deleteFixed(el.dataset.id),

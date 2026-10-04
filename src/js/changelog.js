@@ -4,6 +4,15 @@
    ====================================================================== */
 const CHANGELOG = [
   {
+    v: "1.2.0",
+    date: "2026-10-05",
+    items: [
+      "Neu: Doppelbuchungen erkennen – buchst du den gleichen Betrag kurz hintereinander noch mal, fragt die App nach: doppelt oder richtig?",
+      "Gilt auch für Kassenzettel und Screenshots; Fixkosten sind ausgenommen",
+      "Schon vorhandene Verdachtsfälle zeigt die Übersicht an – mit einem Tipp löschen oder als richtig markieren",
+    ],
+  },
+  {
     v: "1.1.0",
     date: "2026-10-05",
     items: [

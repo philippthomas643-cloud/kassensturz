@@ -22,6 +22,9 @@ Philipp nutzt sie als App auf dem iPhone-Home-Bildschirm. UI-Sprache: Deutsch, p
   - `checks.js` – Meldungen in der App (Ziel erreicht, 50/75/90 %, Wochenrückblick, Kursrutsch), Zustand in `meta/alerts`
   - `demo.js` – Beispieldaten relativ zum heutigen Datum (`demo: true`)
   - `changelog.js` – „Was ist neu“-Einträge (neuester oben)
+  - `dupes.js` – mögliche Doppelbuchungen: gleicher Betrag (Ausgabe/Einnahme), ≤ 3 Tage auseinander, gleiches Konto oder ähnliche
+    Beschreibung, keine Fixkosten. Nachfrage beim Buchen, in der Scan-Prüfliste, Hinweis + Prüfliste für den Bestand.
+    „Beide richtig“ landet als Paar-Schlüssel (`idA|idB`, sortiert) in `meta/app.dupOk`.
   - `scanparse.js` – Auswertung erkannter Texte: `parseScreenshot` (Banking-App: Umsatzliste, Startseite, Mitteilungen; Revolut-erprobt),
     `parseReceipt` (Kassenzettel), `guessCategory`. Ohne Abhängigkeiten, in Node testbar (exportiert `module.exports`).
   - `scan.js` – Scannen: Bild vorbereiten (Graustufen, Dunkelmodus umkehren, Kontrast), Texterkennung mit tesseract.js
@@ -44,7 +47,7 @@ Philipp nutzt sie als App auf dem iPhone-Home-Bildschirm. UI-Sprache: Deutsch, p
   Gebuchte Fixkosten haben die feste ID `fx_<fixedId>_<YYYYMMDD>`.
 - `budgets`: category, limit · `goals`: kind (networth|savings), name, target, currency, accountIds, manual, deadline, notify
 - `snaps`: Tageswerte (ID = Datum): total, byCur, rates
-- `meta`: `rates` (mode live|manual, BTC/USDT {eur, ch24, at, src}, manual), `app` (onboarded, lastBackupAt …), `settings` (notify-Schalter), `alerts`
+- `meta`: `rates` (mode live|manual, BTC/USDT {eur, ch24, at, src}, manual), `app` (onboarded, lastBackupAt, scanAccounts, lastReceiptAcc, dupOk …), `settings` (notify-Schalter), `alerts`
 
 ## Arbeiten an der App
 1. Änderungen in `src/` machen.
@@ -81,3 +84,4 @@ Philipp nutzt sie als App auf dem iPhone-Home-Bildschirm. UI-Sprache: Deutsch, p
 - Der Service Worker liefert immer die gecachte Version; Updates kommen nur über eine geänderte `sw.js` (macht der Build automatisch).
 - Fremde Hosts (Kurs-APIs) nie im Service Worker cachen.
 - `window.kassensturz = { version, build }` wird von den Tests gelesen – nicht entfernen.
+- Mehrere `update`-Ops auf dasselbe Dokument in **einem** `dbBatch` überschreiben sich (jede liest den alten Stand) – zu einem Op zusammenfassen.

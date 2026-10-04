@@ -192,17 +192,20 @@ function learnedCategory(merchant, kind) {
   }
   return SCANPARSE.guessCategory(merchant, kind) || "Sonstiges";
 }
-function findDuplicate(t, accId) {
+/** Schon gebucht? exact = derselbe Umsatz wurde schon mal per Screenshot übernommen; sonst ähnliche Buchungen (siehe dupes.js). */
+function scanDup(t, accVal) {
   const key = scanKey(t);
-  const cents = Math.round(t.amount * 100);
-  for (const x of S.data.tx.values()) {
-    if (x.importKey === key) return x;
-    if (x.accountId !== accId || x.kind !== t.kind) continue;
-    if (Math.round(Math.abs(x.amount) * 100) !== cents) continue;
-    if (Math.abs(daysBetween(x.date, t.date)) > 1) continue;
-    return x;
-  }
-  return null;
+  for (const x of S.data.tx.values()) if (x.importKey === key) return { exact: true, cands: [x] };
+  const probe = { kind: t.kind, amount: t.amount, date: t.date, time: t.time, accountId: accVal && !String(accVal).startsWith("new:") ? accVal : "", note: t.merchant, source: "scan" };
+  const cands = dupCandidates(probe);
+  return cands.length ? { exact: false, cands } : null;
+}
+function scanDupNote(i, d, checked) {
+  const x = d.cands[0];
+  if (d.exact) return '<span class="scan-dupx">' + icon("check", "sm") + "Schon übernommen" + (checked ? " – wird trotzdem nochmal gebucht" : "") + "</span>";
+  return '<span class="scan-dupq">' + icon("alert", "sm") + "<span>" + (d.exact ? "Schon übernommen" : "Gleicher Betrag schon gebucht") + ": " + txTitle(x) + " · " + fmtDay(x.date) + (x.accountId ? " · " + accName(x.accountId) : "") + "</span></span>" +
+    '<span class="seg scan-dupa" role="group" aria-label="Doppelt oder richtig?"><button type="button" data-dupans="dup" data-i="' + i + '" aria-pressed="' + !checked + '">Doppelt</button>' +
+    '<button type="button" data-dupans="ok" data-i="' + i + '" aria-pressed="' + checked + '">Richtig</button></span>';
 }
 function suggestFixed(merged) {
   const out = [];
@@ -250,17 +253,18 @@ function openScanReview(merged) {
   }
   const accOpts = (newOpt ? '<option value="' + esc(newOpt) + '"' + (accDefault === newOpt ? " selected" : "") + ">+ Neues Konto „" + esc(bank) + "“</option>" : "") +
     accs.map((a) => '<option value="' + esc(a.id) + '"' + (a.id === accDefault ? " selected" : "") + ">" + esc(a.name) + " · " + a.currency + "</option>").join("");
+  const dups = txs.map((t) => scanDup(t, accDefault));
   const rowHtml = (t, i) => {
-    const dup = accDefault && !String(accDefault).startsWith("new:") ? findDuplicate(t, accDefault) : null;
+    const dup = dups[i];
     const neg = t.kind !== "income";
-    return '<div class="scan-row' + (dup ? " dup" : "") + '" data-i="' + i + '">' +
+    return '<div class="scan-row' + (dup ? " dup off" + (dup.exact ? "" : " ask") : "") + '" data-i="' + i + '">' +
       '<input type="checkbox" class="scan-ck" id="sc-ck-' + i + '"' + (dup ? "" : " checked") + ' aria-label="Übernehmen">' +
       '<input class="scan-in scan-m" id="sc-m-' + i + '" value="' + esc(t.merchant) + '" maxlength="60" aria-label="Händler">' +
       '<span class="scan-sign ' + (neg ? "" : "pos") + '">' + (neg ? "−" : "+") + "</span>" +
       '<input class="scan-in scan-a ' + (neg ? "" : "pos") + '" id="sc-a-' + i + '" inputmode="decimal" value="' + esc(fmtNum(t.amount, 2, 2)) + '" aria-label="Betrag">' +
       '<input class="scan-in scan-d" type="date" id="sc-d-' + i + '" value="' + esc(t.date) + '" aria-label="Datum">' +
       '<input class="scan-in scan-c" id="sc-c-' + i + '" list="dl-scan-cat" value="' + esc(learnedCategory(t.merchant, t.kind)) + '" aria-label="Kategorie">' +
-      '<span class="scan-note" id="sc-n-' + i + '">' + (dup ? "schon gebucht?" : t.time ? t.time + " Uhr" : "") + "</span></div>";
+      '<div class="scan-note" id="sc-n-' + i + '">' + (dup ? scanDupNote(i, dup, false) : t.time ? esc(t.time) + " Uhr" : "") + "</div></div>";
   };
   const body =
     '<p class="muted" style="margin:0;font-size:13.5px">' + (bank ? "<b>" + esc(bank) + "</b> erkannt · " : "") + txs.length + (txs.length === 1 ? " Umsatz" : " Umsätze") +
@@ -278,16 +282,24 @@ function openScanReview(merged) {
     onMount: (f) => {
       const upd = () => {
         const acc = val(f, "sc-acc");
-        // Duplikate fürs gewählte Konto neu prüfen
+        // Doppelte fürs gewählte Konto neu prüfen und nachfragen
         txs.forEach((t, i) => {
-          const dup = !acc.startsWith("new:") ? findDuplicate(t, acc) : null;
           const row = f.querySelector('.scan-row[data-i="' + i + '"]');
           if (!row) return;
-          const was = row.classList.contains("dup");
-          row.classList.toggle("dup", !!dup);
-          if (!!dup !== was) f.querySelector("#sc-ck-" + i).checked = !dup;
-          f.querySelector("#sc-n-" + i).textContent = dup ? "schon gebucht?" : t.time ? t.time + " Uhr" : "";
+          const ck = f.querySelector("#sc-ck-" + i);
+          if (acc !== dupAcc) {
+            const was = !!dups[i];
+            dups[i] = scanDup(t, acc);
+            if (!!dups[i] !== was) ck.checked = !dups[i];
+          }
+          row.classList.toggle("dup", !!dups[i]);
+          row.classList.toggle("ask", !!dups[i] && !dups[i].exact);
+          row.classList.toggle("off", !ck.checked);
+          const note = f.querySelector("#sc-n-" + i);
+          const html = dups[i] ? scanDupNote(i, dups[i], ck.checked) : t.time ? esc(t.time) + " Uhr" : "";
+          if (note.innerHTML !== html) note.innerHTML = html;
         });
+        dupAcc = acc;
         const n = $$(".scan-ck", f).filter((c) => c.checked).length;
         const fx = fixedSug.filter((x, i) => { const c = f.querySelector("#sc-fx-" + i); return c && c.checked; }).length;
         const bal = f.querySelector("#sc-bal");
@@ -300,8 +312,15 @@ function openScanReview(merged) {
           hint.textContent = "Stand vom " + fmtDate(balance.date, true) + (balance.time ? ", " + balance.time : "") + (plan.balanceNote ? " · " + plan.balanceNote : "");
         }
       };
+      let dupAcc = accDefault;
       f.addEventListener("change", upd);
       f.addEventListener("input", (e) => { if (e.target.classList.contains("scan-a")) upd(); });
+      f.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-dupans]");
+        if (!b) return;
+        f.querySelector("#sc-ck-" + b.dataset.i).checked = b.dataset.dupans === "ok";
+        upd();
+      });
       upd();
     },
     onSubmit: (f) => guarded(f.querySelector("#sc-save"), async () => {
@@ -324,6 +343,7 @@ function scanPlan(f, txs, balance, fixedSug, previewOnly) {
   const cur = isNew ? (txs[0] && txs[0].cur) || (balance && balance.cur) || "EUR" : acc.currency;
   const ops = [];
   const newTx = [];
+  const okPairs = [];
   let bad = false;
   txs.forEach((t, i) => {
     if (!f.querySelector("#sc-ck-" + i).checked) return;
@@ -334,8 +354,11 @@ function scanPlan(f, txs, balance, fixedSug, previewOnly) {
     const e = toEUR(amt, cur);
     const doc = { kind: t.kind, date, accountId: accId, amount: round(amt, cur === "BTC" ? 8 : 6), category: val(f, "sc-c-" + i) || "Sonstiges", note: merchant, eur: e == null ? null : round(e, 2), importKey: scanKey(t), source: "scan", createdAt: Date.now() + i };
     if (t.time) doc.time = t.time;
+    const id = newId("tx");
     newTx.push(doc);
-    ops.push(["tx", newId("tx"), "set", doc]);
+    ops.push(["tx", id, "set", doc]);
+    // Trotz gleichem Betrag übernommen = „richtig“ → nicht nochmal fragen
+    if (!previewOnly) for (const x of dupCandidates(Object.assign({}, doc, { accountId: isNew ? "" : accId }))) okPairs.push(dupPairKey(id, x.id));
   });
   if (bad && !previewOnly) return { error: "Mindestens ein Betrag ist keine gültige Zahl." };
   // Kontostand zum Zeitpunkt des Screenshots angleichen
@@ -375,7 +398,9 @@ function scanPlan(f, txs, balance, fixedSug, previewOnly) {
     ops.push(["fixed", newId("fx"), "set", { kind: "expense", name: s.name, amount: s.amount, currency: s.cur || cur, interval: "monthly", anchor: s.anchor, accountId: accId, category: learnedCategory(s.name, "expense"), active: true, createdAt: Date.now() }]);
   });
   const app = S.data.meta.get("app") || {};
-  if (SCAN_BANK) ops.push(["meta", "app", "update", { scanAccounts: Object.assign({}, app.scanAccounts || {}, { [SCAN_BANK]: accId }) }]);
+  const metaUpd = okPairs.length ? dupOkOps(okPairs)[0][3] : {};
+  if (SCAN_BANK) metaUpd.scanAccounts = Object.assign({}, app.scanAccounts || {}, { [SCAN_BANK]: accId });
+  if (Object.keys(metaUpd).length) ops.push(["meta", "app", "update", metaUpd]); // ein Update – zwei im selben Batch würden sich überschreiben
   const parts = [];
   if (newTx.length) parts.push(newTx.length + (newTx.length === 1 ? " Umsatz" : " Umsätze") + " gebucht");
   if (balance && balOn) parts.push(isNew ? "Konto „" + bankName + "“ angelegt" : Math.abs(adjust) >= 0.005 ? "Kontostand angeglichen" : "Kontostand stimmt");

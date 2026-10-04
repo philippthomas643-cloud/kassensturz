@@ -15,7 +15,7 @@ const VERSION = pkg.version;
 const DATE = (read(src("js", "changelog.js")).match(/date:\s*"(\d{4}-\d{2}-\d{2})"/) || [])[1] || new Date().toISOString().slice(0, 10);
 
 // Reihenfolge ist wichtig: alles teilt sich einen Gültigkeitsbereich
-const JS_ORDER = ["core", "store", "rates", "checks", "demo", "changelog", "scanparse", "scan", "views", "charts", "forms", "pwa", "app"];
+const JS_ORDER = ["core", "store", "rates", "checks", "demo", "changelog", "dupes", "scanparse", "scan", "views", "charts", "forms", "pwa", "app"];
 const jsRaw = "(() => {\n" + JS_ORDER.map((n) => "/* ===== " + n + ".js ===== */\n" + read(src("js", n + ".js"))).join("\n") + "\n})();\n";
 const css = read(src("styles.css"));
 const body = read(src("body.html"));
