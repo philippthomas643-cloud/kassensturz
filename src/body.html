@@ -1,0 +1,32 @@
+<div class="app" id="app">
+  <aside class="side" aria-label="Navigation">
+    <a class="brand" href="#uebersicht"><img src="icons/icon-192.png" alt="" width="30" height="30"><span class="brand-name">Kassensturz</span></a>
+    <nav class="nav" id="nav-side"></nav>
+    <div class="side-foot">
+      <div class="side-rates" id="side-rates" aria-live="polite"></div>
+      <button class="side-btn" type="button" data-act="open-settings" id="btn-settings-side"></button>
+    </div>
+  </aside>
+
+  <header class="topbar" id="topbar">
+    <a class="brand" href="#uebersicht"><img src="icons/icon-192.png" alt="" width="28" height="28"><span class="brand-name">Kassensturz</span></a>
+    <div class="top-right">
+      <button class="top-status" type="button" id="top-status" data-act="refresh-rates" aria-label="Kurse aktualisieren"></button>
+      <button class="icon-btn" type="button" data-act="open-settings" aria-label="Einstellungen" id="btn-settings-top"></button>
+    </div>
+  </header>
+
+  <main class="main" id="main" tabindex="-1">
+    <div class="boot">
+      <h2>Kassensturz startet …</h2>
+      <div class="skel" style="width: 60%"></div>
+      <div class="skel" style="width: 40%"></div>
+    </div>
+  </main>
+
+  <nav class="tabbar" id="nav-tab" aria-label="Navigation"></nav>
+  <button class="fab" type="button" data-act="new-tx" aria-label="Neue Buchung" id="fab"></button>
+</div>
+<div id="modal-host"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<noscript><p style="padding:24px;font:16px system-ui">Kassensturz braucht JavaScript.</p></noscript>

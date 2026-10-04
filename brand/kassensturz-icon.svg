@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Kassensturz</title>
+  <defs>
+    <linearGradient id="ks-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c1224"/><stop offset=".62" stop-color="#05070f"/><stop offset="1" stop-color="#020306"/></linearGradient>
+    <radialGradient id="ks-halo" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#3a5cff" stop-opacity=".40"/><stop offset=".55" stop-color="#3a5cff" stop-opacity=".07"/><stop offset="1" stop-color="#3a5cff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="ks-ember" cx=".74" cy=".76" r=".3"><stop offset="0" stop-color="#ff6a2a" stop-opacity=".16"/><stop offset="1" stop-color="#ff6a2a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="ks-k" gradientUnits="userSpaceOnUse" x1="260" y1="262" x2="800" y2="762"><stop offset="0" stop-color="#4c7dff"/><stop offset=".5" stop-color="#14e0b0"/><stop offset="1" stop-color="#ff6a2a"/></linearGradient>
+    <linearGradient id="ks-shine" gradientUnits="userSpaceOnUse" x1="0" y1="262" x2="0" y2="762"><stop offset="0" stop-color="#fff" stop-opacity=".30"/><stop offset=".3" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <linearGradient id="ks-floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d96ff" stop-opacity="0"/><stop offset="1" stop-color="#7d96ff" stop-opacity=".14"/></linearGradient>
+    <clipPath id="ks-clip"><rect x="0" y="262" width="1024" height="500"/></clipPath>
+    <filter id="ks-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40"/></filter>
+    <filter id="ks-glow2" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="10"/></filter>
+    <g id="ks-shape"><g clip-path="url(#ks-clip)"><rect x="261" y="180" width="112" height="680"/><polygon points="407,548 665,200 797,200 539,548"/><polygon points="519,580 647,580 807,830 679,830"/></g></g>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#ks-bg)"/>
+  <rect width="1024" height="1024" fill="url(#ks-halo)"/>
+  <rect width="1024" height="1024" fill="url(#ks-ember)"/>
+  <g stroke="url(#ks-floor)" stroke-width="2" fill="none">
+    <path d="M0 842H1024M0 892H1024M0 952H1024M0 1018H1024"/>
+    <path d="M512 800V1024M512 800 330 1024M512 800 694 1024M512 800 150 1024M512 800 874 1024M512 800-30 1024M512 800 1054 1024"/>
+  </g>
+  <use href="#ks-shape" fill="url(#ks-k)" filter="url(#ks-glow)" opacity=".85"/>
+  <use href="#ks-shape" fill="url(#ks-k)" filter="url(#ks-glow2)" opacity=".45"/>
+  <use href="#ks-shape" fill="url(#ks-k)"/>
+  <use href="#ks-shape" fill="url(#ks-shine)"/>
+</svg>
