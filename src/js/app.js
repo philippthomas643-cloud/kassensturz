@@ -92,6 +92,8 @@ const ACTIONS = {
   "snooze-backup": () => { setUiPref("backupSnooze", String(Date.now() + 14 * 86400000)); renderMain(); },
   "edit-tx": (el) => openTxForm({ id: el.dataset.id }),
   "delete-tx": (el) => deleteTx(el.dataset.id),
+  "cost-edit": (el) => openCostForm(el.dataset.cur),
+  "cost-remove": (el) => guarded(null, () => costRemove(el.dataset.cur)),
   "dup-review": () => openDupReview(),
   "dup-del": (el) => guarded(null, () => dupDelete(el.dataset.id)),
   "dup-ok": (el) => guarded(null, () => dupConfirm(el.dataset.key)),

@@ -480,7 +480,7 @@ VIEWS.uebersicht = function () {
   const budgetPanel = '<section class="panel o8"><div class="panel-h"><div><h2>Budget ' + MONTHS[now.getMonth()] + '</h2><div class="sub">Ausgaben gegen dein Monatslimit</div></div><a class="link-btn" href="#budget">Alle' + icon("right", "sm") + "</a></div>" + budgetCompact() + "</section>";
   const recentPanel = '<section class="panel o9"><div class="panel-h"><div><h2>Letzte Buchungen</h2></div><div class="panel-tools"><a class="link-btn" href="#buchungen">Alle' + icon("right", "sm") + "</a></div></div>" + recentTxHtml() + "</section>";
   return '<div class="dash ov">' +
-    '<div class="stack c8">' + heroHtml() + quickActionsHtml() + accountsPanel + budgetPanel + recentPanel + "</div>" +
+    '<div class="stack c8">' + heroHtml() + quickActionsHtml() + accountsPanel + coinsPanelHtml() + budgetPanel + recentPanel + "</div>" +
     '<div class="stack c4"><section class="panel o4">' + ratesPanelHtml() + '</section><section class="panel o5">' + upcomingHtml() + '</section><section class="panel o6">' + monthPanelHtml() + "</section>" + goalsPanel + "</div>" +
     "</div>";
 };
@@ -502,6 +502,7 @@ VIEWS.konten = function () {
     const g = d.byCur[c];
     h += '<section class="panel c12"><div class="group-h" style="padding:0 0 4px"><span class="gt"><span class="sw" style="background:' + CUR[c].color + '"></span>' + CUR[c].name + " · " + c + "</span>" +
       '<span class="gv"><b>' + fmtAmt(g.native, c) + "</b>" + (c !== "EUR" ? " · " + (g.eur == null ? "Kurs fehlt" : "≈ " + fmtEUR(g.eur)) : "") + (c === "BTC" ? " · " + fmtSats(g.native) : "") + "</span></div>" +
+      (COINS.includes(c) ? coinLineHtml(c) : "") +
       '<div class="rows">' + list.map(accRowFull).join("") + "</div></section>";
   }
   h += "</div>";

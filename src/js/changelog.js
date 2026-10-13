@@ -4,6 +4,15 @@
    ====================================================================== */
 const CHANGELOG = [
   {
+    v: "1.4.0",
+    date: "2026-10-13",
+    items: [
+      "Neu: Gewinn & Verlust pro Coin – trag ein, wofür du deine BTC gekauft hast (in USDT oder Euro), und sieh deinen Ø-Kaufpreis und wie viel Prozent du im Plus oder Minus bist",
+      "Käufe und Verkäufe per Umbuchung (z. B. USDT → BTC) rechnet die App automatisch in den Durchschnitt ein, inkl. realisiertem Gewinn",
+      "Auch auf der Konten-Seite siehst du bei BTC und USDT den Ø-Kaufpreis",
+    ],
+  },
+  {
     v: "1.3.0",
     date: "2026-10-05",
     items: [

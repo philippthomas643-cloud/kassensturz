@@ -25,6 +25,9 @@ Philipp nutzt sie als App auf dem iPhone-Home-Bildschirm. UI-Sprache: Deutsch, p
   - `dupes.js` – mögliche Doppelbuchungen: gleicher Betrag (Ausgabe/Einnahme), ≤ 3 Tage auseinander, gleiches Konto oder ähnliche
     Beschreibung, keine Fixkosten. Nachfrage beim Buchen, in der Scan-Prüfliste, Hinweis + Prüfliste für den Bestand.
     „Beide richtig“ landet als Paar-Schlüssel (`idA|idB`, sortiert) in `meta/app.dupOk`.
+  - `coins.js` – Einkaufspreis & Gewinn pro Coin (BTC, USDT): Einstand in `meta/cost` (`{BTC: {qty, paid, quote, at}}`, quote USDT|EUR),
+    danach angelegte Umbuchungen Coin ↔ andere Währung zählen als Kauf/Verkauf (Durchschnittsmethode, Tageskurs aus `snaps`).
+    Panel „Gewinn & Verlust“ in der Übersicht, Zeile auf der Konten-Seite, Formular `openCostForm`.
   - `scanparse.js` – Auswertung erkannter Texte: `parseScreenshot` (Banking-App: Umsatzliste, Startseite, Mitteilungen; Revolut-erprobt),
     `parseReceipt` (Kassenzettel), `guessCategory`. Ohne Abhängigkeiten, in Node testbar (exportiert `module.exports`).
   - `scan.js` – Scannen: Bild vorbereiten (Graustufen, Dunkelmodus umkehren, Kontrast), Texterkennung mit tesseract.js
@@ -47,7 +50,7 @@ Philipp nutzt sie als App auf dem iPhone-Home-Bildschirm. UI-Sprache: Deutsch, p
   Gebuchte Fixkosten haben die feste ID `fx_<fixedId>_<YYYYMMDD>`.
 - `budgets`: category, limit · `goals`: kind (networth|savings), name, target, currency, accountIds, manual, deadline, notify
 - `snaps`: Tageswerte (ID = Datum): total, byCur, rates
-- `meta`: `rates` (mode live|manual, BTC/USDT {eur, ch24, at, src}, manual), `app` (onboarded, lastBackupAt, scanAccounts, lastReceiptAcc, dupOk …), `settings` (notify-Schalter), `alerts`
+- `meta`: `rates` (mode live|manual, BTC/USDT {eur, ch24, at, src}, manual), `app` (onboarded, lastBackupAt, scanAccounts, lastReceiptAcc, dupOk …), `settings` (notify-Schalter), `alerts`, `cost` (Einkaufspreise, siehe `coins.js`)
 
 ## Arbeiten an der App
 1. Änderungen in `src/` machen.

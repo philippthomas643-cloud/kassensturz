@@ -419,6 +419,81 @@ try {
   ok(!(await pf.$(".modal")) && !(await pf.$(".dup-banner")) && Math.abs(num(await heroValue(pf)) - (beforeDel + 5)) < 0.01, "Doppelte gelöscht → Hinweis weg, Kontostand +5 €");
   await cf.close();
 
+  /* ---------------- 13b. Gewinn & Verlust pro Coin ---------------- */
+  step("Einkaufspreis und Gewinn pro Coin");
+  const cc = await phoneContext(browser);
+  await mockRates(cc);
+  const pc = await cc.newPage();
+  watchErrors(pc, errors);
+  await pc.goto(BASE);
+  await pc.click('[data-act="start-empty"]');
+  await pc.waitForSelector("#acc-name");
+  await fill(pc, "#acc-name", "Ledger");
+  await seg(pc, "acc-cur", "BTC");
+  await fill(pc, "#acc-bal", "0,05");
+  await pc.click("#acc-save");
+  await pc.waitForTimeout(300);
+  await pc.click('[data-act="new-account"]');
+  await pc.waitForSelector("#acc-name");
+  await fill(pc, "#acc-name", "Binance");
+  await seg(pc, "acc-cur", "USDT");
+  await fill(pc, "#acc-bal", "2.000");
+  await pc.click("#acc-save");
+  await pc.waitForTimeout(400);
+  await closeToasts(pc);
+  const btcCard = '.coins-panel .coin:has-text("Bitcoin")';
+  ok(/Für wie viel hast du deine 0,05 BTC gekauft/.test(await pc.textContent(btcCard)), "Ohne Einkaufspreis: Aufforderung zum Eintragen");
+  await pc.click(btcCard + ' [data-act="cost-edit"]');
+  await pc.waitForSelector("#cost-amt");
+  await fill(pc, "#cost-amt", "4.000");
+  ok(/Ø Kaufpreis 80\.000 USDT/.test(await pc.textContent("#cost-prev")), "Vorschau: 4.000 USDT für 0,05 BTC → Ø 80.000 USDT");
+  if (process.env.KS_SHOTS) { await closeToasts(pc); await pc.waitForTimeout(600); await pc.screenshot({ path: path.join(root, "test", "shots", "coins-form.png") }); }
+  await pc.click("#cost-save");
+  await pc.waitForTimeout(400);
+  const de = (v, d) => new Intl.NumberFormat("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
+  const P = 75737.64 * 1.1252; // BTC in USDT laut simulierten Kursen
+  const pct1 = "+" + de((P / 80000 - 1) * 100, 1) + " %";
+  const txt1 = await pc.textContent(btcCard);
+  ok(txt1.includes(pct1) && txt1.includes("+" + de((P - 80000) * 0.05, 2) + " USDT") && txt1.includes(de(P, 0) + " USDT"), "Gewinn " + pct1 + " und +" + de((P - 80000) * 0.05, 2) + " USDT bei Kurs " + de(P, 0) + " USDT");
+  // Kauf per Umbuchung: 1.000 USDT → 0,01 BTC
+  const pickAcc = async (sel, name) => pc.selectOption(sel, await pc.$$eval(sel + " option", (os, n) => os.find((o) => o.textContent.startsWith(n)).value, name));
+  const transfer = async (from, to, amt, toAmt) => {
+    await pc.click('.quick [data-kind="transfer"]');
+    await pc.waitForSelector("#tx-amt");
+    await pickAcc("#tx-acc", from);
+    await pickAcc("#tx-to", to);
+    await fill(pc, "#tx-amt", amt);
+    await fill(pc, "#tx-toamt", toAmt);
+    await pc.click("#tx-save");
+    await pc.waitForSelector(".modal", { state: "detached", timeout: 3000 });
+    await pc.waitForTimeout(250);
+    await closeToasts(pc);
+  };
+  await transfer("Binance", "Ledger", "1.000", "0,01");
+  const txt2 = await pc.textContent(btcCard);
+  ok(txt2.includes("0,06 BTC") && txt2.includes("83.333 USDT") && /1 Kauf/.test(txt2), "Kauf per Umbuchung → 0,06 BTC, Ø 83.333 USDT");
+  await transfer("Ledger", "Binance", "0,03", "2.700");
+  const txt3 = await pc.textContent(btcCard);
+  ok(txt3.includes("0,03 BTC") && txt3.includes("83.333 USDT") && txt3.includes("realisiert +200,00 USDT"), "Verkauf → Ø bleibt 83.333 USDT, realisiert +200,00 USDT");
+  if (process.env.KS_SHOTS) { await pc.$eval(".coins-panel", (e) => e.scrollIntoView()); await pc.waitForTimeout(300); await pc.screenshot({ path: path.join(root, "test", "shots", "coins.png") }); }
+  await pc.goto(BASE + "#konten");
+  ok(/Ø Kaufpreis 83\.333 USDT/.test(await pc.textContent(".coin-line[data-cur=\"BTC\"]")), "Konten-Seite zeigt Ø-Kaufpreis und Gewinn");
+  if (process.env.KS_SHOTS) { await pc.waitForTimeout(300); await pc.screenshot({ path: path.join(root, "test", "shots", "coins-konten.png") }); }
+  await pc.click(".coin-line[data-cur=\"BTC\"]");
+  await pc.waitForSelector("#cost-amt");
+  await seg(pc, "cost-mode", "price");
+  ok((await pc.inputValue("#cost-amt")) === "83333,33", "Umschalten auf „Preis pro 1 BTC“ rechnet den Betrag um");
+  await fill(pc, "#cost-amt", "70.000");
+  await pc.click("#cost-save");
+  await pc.waitForTimeout(400);
+  ok(/Ø Kaufpreis 70\.000 USDT/.test(await pc.textContent(".coin-line[data-cur=\"BTC\"]")), "Neuer Ø-Kaufpreis 70.000 USDT gespeichert");
+  await pc.click(".coin-line[data-cur=\"BTC\"]");
+  await pc.waitForSelector("#cost-amt");
+  await pc.click('.modal [data-act="cost-remove"]');
+  await pc.waitForTimeout(400);
+  ok(/Einkaufspreis eintragen/.test(await pc.textContent(".coin-line[data-cur=\"BTC\"]")), "Einkaufspreis entfernt");
+  await cc.close();
+
   /* ---------------- 14. Kursquellen ---------------- */
   step("Kursquellen");
   const c2 = await phoneContext(browser);
