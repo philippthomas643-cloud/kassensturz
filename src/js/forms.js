@@ -113,7 +113,6 @@ function amountPreview(raw, cur) {
     const e = toEUR(v, cur);
     s += e == null ? "" : " · ≈ " + fmtEUR(e);
   }
-  if (cur === "BTC") s += " · " + fmtSats(v);
   return s;
 }
 async function guarded(btn, fn) {
@@ -195,12 +194,14 @@ function deleteAccount(id) {
     ok: "Endgültig löschen",
     danger: true,
     onOk: async () => {
-      const backup = { acc: stripId(a), txs: txs.map((t) => [t.id, stripId(t)]), goals: [], fixed: [] };
+      const backup = { acc: stripId(a), txs: txs.map((t) => [t.id, stripId(t)]), goals: [], fixed: [], pos: [] };
+      for (const p of S.data.positions.values()) if (p.accountId === id || (p.txId && txs.some((t) => t.id === p.txId))) backup.pos.push([p.id, stripId(p)]);
       for (const g of S.data.goals.values()) if ((g.accountIds || []).includes(id)) backup.goals.push([g.id, stripId(g)]);
       for (const x of S.data.fixed.values()) if (x.accountId === id) backup.fixed.push([x.id, stripId(x)]);
       await runPool(txs, (t) => dbWrite("tx", t.id, "delete"), 4);
       for (const [gid, g] of backup.goals) await dbWrite("goals", gid, "set", Object.assign({}, g, { accountIds: (g.accountIds || []).filter((x) => x !== id) }));
       for (const [fid, x] of backup.fixed) await dbWrite("fixed", fid, "set", Object.assign({}, x, { accountId: null }));
+      if (backup.pos.length) await dbBatch(backup.pos.map(([pid]) => ["positions", pid, "delete"]));
       await dbWrite("accounts", id, "delete");
       toast("Konto gelöscht", {
         action: "Rückgängig",
@@ -209,6 +210,7 @@ function deleteAccount(id) {
           await runPool(backup.txs, ([tid, t]) => dbWrite("tx", tid, "set", t), 4);
           for (const [gid, g] of backup.goals) await dbWrite("goals", gid, "set", g);
           for (const [fid, x] of backup.fixed) await dbWrite("fixed", fid, "set", x);
+          if (backup.pos.length) await dbBatch(backup.pos.map(([pid, p]) => ["positions", pid, "set", p]));
           toast("Konto wiederhergestellt");
         }),
       });
@@ -266,8 +268,9 @@ function openAccountDetail(id) {
     body:
       '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-end;flex-wrap:wrap"><div><div class="eyebrow">' + (ACC_KINDS[a.kind] || "Konto") + " · " + a.currency + "</div>" +
       '<div style="font-size:30px;font-weight:680;letter-spacing:-0.02em;margin-top:6px">' + fmtAmt(b, a.currency) + "</div>" +
-      '<div class="muted">' + (a.currency !== "EUR" ? (e == null ? "Kurs fehlt" : "≈ " + fmtEUR(e)) : "") + (a.currency === "BTC" ? " · " + fmtSats(b) : "") + "</div></div>" +
+      '<div class="muted">' + (a.currency !== "EUR" ? (e == null ? "Kurs fehlt" : "≈ " + fmtEUR(e)) : "") + "</div></div>" +
       '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" type="button" data-act="adjust-balance" data-id="' + esc(id) + '">' + icon("adjust", "sm") + 'Kontostand aktualisieren</button><button class="btn btn-sm" type="button" data-act="new-tx" data-acc="' + esc(id) + '">' + icon("plus", "sm") + 'Buchung</button><button class="btn btn-sm" type="button" data-act="edit-account" data-id="' + esc(id) + '">' + icon("pencil", "sm") + "Bearbeiten</button></div></div>" +
+      (COINS.includes(a.currency) ? positionsSectionHtml(id) : "") +
       '<div class="sec-title">Letzte Buchungen</div>' +
       (txs.length ? '<div class="rows">' + txs.map((t) => txRow(t, true)).join("") + "</div>" : '<p class="muted" style="margin:0">Noch keine Buchungen auf diesem Konto.</p>'),
     wide: true,
@@ -304,6 +307,7 @@ function openTxForm(o = {}) {
     '<div id="tx-cat-wrap"' + (kind === "transfer" ? " hidden" : "") + ">" + fieldHtml("Kategorie", '<input class="input" id="tx-cat" list="dl-cat" maxlength="40" value="' + esc(t ? t.category || "" : pre.category || "") + '" placeholder="z. B. Lebensmittel">') + "</div>" +
     "</div>" +
     '<div id="tx-toamt-wrap" hidden>' + fieldHtml("Betrag angekommen", amountInput("tx-toamt", toAmt0, accCur(toId), 'placeholder="0,00"'), "", "tx-toamt-hint") + "</div>" +
+    (t ? "" : '<label class="check" id="tx-pos-wrap" hidden><input type="checkbox" id="tx-pos"> <span><b id="tx-pos-lbl">Als neue Position führen</b><br><span class="faint" style="font-size:12.5px">Der Kauf bekommt einen eigenen Einkaufspreis und Gewinn.</span></span></label>') +
     '<div class="grid2">' + fieldHtml("Datum", '<input class="input" type="date" id="tx-date" value="' + esc(t ? t.date : pre.date || isoDate()) + '">') +
     fieldHtml("Beschreibung <span class=\"faint\">(optional)</span>", '<input class="input" id="tx-note" maxlength="80" value="' + esc(t ? t.note || "" : pre.note || "") + '" placeholder="z. B. Lidl, Tankstelle">') + "</div>" +
     (fixedId ? '<div class="preview">' + icon("repeat", "sm") + " Gehört zu Fixkosten „" + esc((S.data.fixed.get(fixedId) || {}).name || "") + "“" + (pre.due || (t && t.period) ? ", fällig " + fmtDate(pre.due || t.period, true) : "") + "</div>" : "") +
@@ -326,6 +330,13 @@ function openTxForm(o = {}) {
         f.querySelector("#tx-cat-wrap").hidden = kind === "transfer";
         const crossCur = kind === "transfer" && c !== c2;
         f.querySelector("#tx-toamt-wrap").hidden = !crossCur;
+        const pw = f.querySelector("#tx-pos-wrap");
+        if (pw) {
+          const canPos = kind === "transfer" && txPositionAllowed(acc, to);
+          if (canPos && pw.hidden) f.querySelector("#tx-pos").checked = c2 === "BTC"; // BTC-Kauf: standardmäßig als Position
+          pw.hidden = !canPos;
+          if (canPos) f.querySelector("#tx-pos-lbl").textContent = "Als neue Position in „" + (S.data.accounts.get(to) || {}).name + "“ führen";
+        }
         if (changed === "tx-kind") {
           const dl = f.querySelector("#dl-cat");
           dl.innerHTML = allCategories(kind === "income" ? "income" : "expense").map((x) => '<option value="' + esc(x) + '"></option>').join("");
@@ -402,10 +413,13 @@ function openTxForm(o = {}) {
         }
         const ops = [["tx", id, "set", doc]];
         if (cands.length) ops.push(...dupOkOps(cands.map((x) => dupPairKey(id, x.id))));
+        const pw = f.querySelector("#tx-pos-wrap");
+        const asPos = k === "transfer" && pw && !pw.hidden && f.querySelector("#tx-pos").checked && txPositionAllowed(doc.accountId, doc.toAccountId);
+        if (asPos) { const op = txPositionOp(id, doc); doc.posId = op[1]; ops.push(op); }
         await dbBatch(ops);
         if (rc) dbWrite("meta", "app", "update", { lastReceiptAcc: acc }).catch(() => {});
         closeModal();
-        toast(k === "transfer" ? "Umbuchung gespeichert" : k === "income" ? "Einnahme gebucht" : "Ausgabe gebucht");
+        toast(asPos ? "Kauf gespeichert – neue Position in „" + (S.data.accounts.get(doc.toAccountId) || {}).name + "“" : k === "transfer" ? "Umbuchung gespeichert" : k === "income" ? "Einnahme gebucht" : "Ausgabe gebucht");
       }
     }),
   });
@@ -433,10 +447,11 @@ function deleteTx(id) {
   const t = S.data.tx.get(id);
   if (!t) return;
   const copy = stripId(t);
+  const linked = Array.from(S.data.positions.values()).filter((p) => p.txId === id).map((p) => [p.id, stripId(p)]);
   guarded(null, async () => {
-    await dbWrite("tx", id, "delete");
+    await dbBatch([["tx", id, "delete"]].concat(linked.map(([pid]) => ["positions", pid, "delete"])));
     closeModal();
-    toast("Buchung gelöscht", { action: "Rückgängig", onAction: () => guarded(null, async () => { await dbWrite("tx", id, "set", copy); toast("Buchung wiederhergestellt"); }) });
+    toast(linked.length ? "Buchung und Position gelöscht" : "Buchung gelöscht", { action: "Rückgängig", onAction: () => guarded(null, async () => { await dbBatch([["tx", id, "set", copy]].concat(linked.map(([pid, p]) => ["positions", pid, "set", p]))); toast("Buchung wiederhergestellt"); }) });
   });
 }
 

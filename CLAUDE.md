@@ -25,9 +25,10 @@ Philipp nutzt sie als App auf dem iPhone-Home-Bildschirm. UI-Sprache: Deutsch, p
   - `dupes.js` – mögliche Doppelbuchungen: gleicher Betrag (Ausgabe/Einnahme), ≤ 3 Tage auseinander, gleiches Konto oder ähnliche
     Beschreibung, keine Fixkosten. Nachfrage beim Buchen, in der Scan-Prüfliste, Hinweis + Prüfliste für den Bestand.
     „Beide richtig“ landet als Paar-Schlüssel (`idA|idB`, sortiert) in `meta/app.dupOk`.
-  - `coins.js` – Einkaufspreis & Gewinn pro Coin (BTC, USDT): Einstand in `meta/cost` (`{BTC: {qty, paid, quote, at}}`, quote USDT|EUR),
-    danach angelegte Umbuchungen Coin ↔ andere Währung zählen als Kauf/Verkauf (Durchschnittsmethode, Tageskurs aus `snaps`).
-    Panel „Gewinn & Verlust“ in der Übersicht, Zeile auf der Konten-Seite, Formular `openCostForm`.
+  - `coins.js` – Positionen & Gewinn pro Coin (BTC, USDT): jede Position eigener Kaufpreis/Gewinn, Summe pro Konto und pro Coin.
+    Verknüpfte Kauf-Buchung (`txId`, Umbuchung vom Zahlkonto oder Kontostand-Korrektur) liefert Menge/Betrag/Datum.
+    Weniger auf dem Konto als in Positionen → älteste zuerst abbauen (FIFO). Panel „Gewinn & Verlust“ (Übersicht), Positionen im
+    Konto-Detail, Formular `openPositionForm`. 1.4.0-Einkaufspreis (`meta/cost`) wird beim Start per `migrateCost` zu Positionen.
   - `scanparse.js` – Auswertung erkannter Texte: `parseScreenshot` (Banking-App: Umsatzliste, Startseite, Mitteilungen; Revolut-erprobt),
     `parseReceipt` (Kassenzettel), `guessCategory`. Ohne Abhängigkeiten, in Node testbar (exportiert `module.exports`).
   - `scan.js` – Scannen: Bild vorbereiten (Graustufen, Dunkelmodus umkehren, Kontrast), Texterkennung mit tesseract.js
@@ -50,7 +51,8 @@ Philipp nutzt sie als App auf dem iPhone-Home-Bildschirm. UI-Sprache: Deutsch, p
   Gebuchte Fixkosten haben die feste ID `fx_<fixedId>_<YYYYMMDD>`.
 - `budgets`: category, limit · `goals`: kind (networth|savings), name, target, currency, accountIds, manual, deadline, notify
 - `snaps`: Tageswerte (ID = Datum): total, byCur, rates
-- `meta`: `rates` (mode live|manual, BTC/USDT {eur, ch24, at, src}, manual), `app` (onboarded, lastBackupAt, scanAccounts, lastReceiptAcc, dupOk …), `settings` (notify-Schalter), `alerts`, `cost` (Einkaufspreise, siehe `coins.js`)
+- `positions` (seit IDB-Version 2): accountId, qty, paid, quote (USDT|EUR), date, note, txId?, createdAt. Kauf-Buchungen tragen `posId`.
+- `meta`: `rates` (mode live|manual, BTC/USDT {eur, ch24, at, src}, manual), `app` (onboarded, lastBackupAt, scanAccounts, lastReceiptAcc, dupOk …), `settings` (notify-Schalter), `alerts`, `cost` (Einkaufspreise aus 1.4.0, nach Umzug mit `migratedAt`)
 
 ## Arbeiten an der App
 1. Änderungen in `src/` machen.

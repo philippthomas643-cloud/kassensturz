@@ -92,8 +92,10 @@ const ACTIONS = {
   "snooze-backup": () => { setUiPref("backupSnooze", String(Date.now() + 14 * 86400000)); renderMain(); },
   "edit-tx": (el) => openTxForm({ id: el.dataset.id }),
   "delete-tx": (el) => deleteTx(el.dataset.id),
-  "cost-edit": (el) => openCostForm(el.dataset.cur),
-  "cost-remove": (el) => guarded(null, () => costRemove(el.dataset.cur)),
+  "pos-new": (el) => (el.dataset.acc ? openPositionForm({ acc: el.dataset.acc, mode: el.dataset.mode, back: !!el.dataset.back }) : openCoinAccountPicker(el.dataset.cur)),
+  "pos-edit": (el) => openPositionForm({ id: el.dataset.id, back: true }),
+  "pos-delete": (el) => guarded(null, () => posDelete(el.dataset.id)),
+  "pos-coin": (el) => openCoinPositions(el.dataset.cur),
   "dup-review": () => openDupReview(),
   "dup-del": (el) => guarded(null, () => dupDelete(el.dataset.id)),
   "dup-ok": (el) => guarded(null, () => dupConfirm(el.dataset.key)),
@@ -223,6 +225,7 @@ async function boot() {
     IDB = await idbOpen();
     await loadCollections(COLS);
     S.runtime = "ok";
+    await migrateCost().catch((e) => console.warn("Einkaufspreise umziehen:", e));
   } catch (e) {
     console.error(e);
     S.runtime = "error";

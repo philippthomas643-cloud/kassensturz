@@ -419,80 +419,138 @@ try {
   ok(!(await pf.$(".modal")) && !(await pf.$(".dup-banner")) && Math.abs(num(await heroValue(pf)) - (beforeDel + 5)) < 0.01, "Doppelte gelöscht → Hinweis weg, Kontostand +5 €");
   await cf.close();
 
-  /* ---------------- 13b. Gewinn & Verlust pro Coin ---------------- */
-  step("Einkaufspreis und Gewinn pro Coin");
+  /* ---------------- 13b. Positionen & Gewinn pro Coin ---------------- */
+  step("Positionen im BTC-Konto");
   const cc = await phoneContext(browser);
   await mockRates(cc);
   const pc = await cc.newPage();
   watchErrors(pc, errors);
   await pc.goto(BASE);
   await pc.click('[data-act="start-empty"]');
-  await pc.waitForSelector("#acc-name");
-  await fill(pc, "#acc-name", "Ledger");
-  await seg(pc, "acc-cur", "BTC");
-  await fill(pc, "#acc-bal", "0,05");
-  await pc.click("#acc-save");
-  await pc.waitForTimeout(300);
-  await pc.click('[data-act="new-account"]');
-  await pc.waitForSelector("#acc-name");
-  await fill(pc, "#acc-name", "Binance");
-  await seg(pc, "acc-cur", "USDT");
-  await fill(pc, "#acc-bal", "2.000");
-  await pc.click("#acc-save");
-  await pc.waitForTimeout(400);
-  await closeToasts(pc);
-  const btcCard = '.coins-panel .coin:has-text("Bitcoin")';
-  ok(/Für wie viel hast du deine 0,05 BTC gekauft/.test(await pc.textContent(btcCard)), "Ohne Einkaufspreis: Aufforderung zum Eintragen");
-  await pc.click(btcCard + ' [data-act="cost-edit"]');
-  await pc.waitForSelector("#cost-amt");
-  await fill(pc, "#cost-amt", "4.000");
-  ok(/Ø Kaufpreis 80\.000 USDT/.test(await pc.textContent("#cost-prev")), "Vorschau: 4.000 USDT für 0,05 BTC → Ø 80.000 USDT");
-  if (process.env.KS_SHOTS) { await closeToasts(pc); await pc.waitForTimeout(600); await pc.screenshot({ path: path.join(root, "test", "shots", "coins-form.png") }); }
-  await pc.click("#cost-save");
-  await pc.waitForTimeout(400);
+  const newAcc = async (pg, name, cur, bal) => {
+    if (!(await pg.waitForSelector("#acc-name", { timeout: 1200 }).catch(() => null))) await pg.click('[data-act="new-account"]');
+    await pg.waitForSelector("#acc-name");
+    await fill(pg, "#acc-name", name);
+    await seg(pg, "acc-cur", cur);
+    await fill(pg, "#acc-bal", bal);
+    await pg.click("#acc-save");
+    await pg.waitForSelector(".modal", { state: "detached", timeout: 3000 });
+    await pg.waitForTimeout(250);
+    await closeToasts(pg);
+  };
+  await newAcc(pc, "Ledger", "BTC", "0,05");
+  await newAcc(pc, "Binance", "USDT", "2.000");
   const de = (v, d) => new Intl.NumberFormat("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
   const P = 75737.64 * 1.1252; // BTC in USDT laut simulierten Kursen
-  const pct1 = "+" + de((P / 80000 - 1) * 100, 1) + " %";
-  const txt1 = await pc.textContent(btcCard);
-  ok(txt1.includes(pct1) && txt1.includes("+" + de((P - 80000) * 0.05, 2) + " USDT") && txt1.includes(de(P, 0) + " USDT"), "Gewinn " + pct1 + " und +" + de((P - 80000) * 0.05, 2) + " USDT bei Kurs " + de(P, 0) + " USDT");
-  // Kauf per Umbuchung: 1.000 USDT → 0,01 BTC
-  const pickAcc = async (sel, name) => pc.selectOption(sel, await pc.$$eval(sel + " option", (os, n) => os.find((o) => o.textContent.startsWith(n)).value, name));
-  const transfer = async (from, to, amt, toAmt) => {
-    await pc.click('.quick [data-kind="transfer"]');
-    await pc.waitForSelector("#tx-amt");
-    await pickAcc("#tx-acc", from);
-    await pickAcc("#tx-to", to);
-    await fill(pc, "#tx-amt", amt);
-    await fill(pc, "#tx-toamt", toAmt);
-    await pc.click("#tx-save");
-    await pc.waitForSelector(".modal", { state: "detached", timeout: 3000 });
-    await pc.waitForTimeout(250);
+  const pctTxt = (v) => de(Math.abs(v * 100), 1) + " %";
+  const btcCard = '.coins-panel .coin:has-text("Bitcoin")';
+  ok(/Für wie viel hast du deine 0,05 BTC gekauft/.test(await pc.textContent(btcCard)), "Ohne Position: Aufforderung zum Eintragen");
+  await pc.click(btcCard + ' [data-act="pos-new"]');
+  await pc.waitForSelector("#pos-qty");
+  ok((await pc.getAttribute('[data-seg="pos-mode"] [aria-pressed="true"]', "data-seg-val")) === "have" && (await pc.inputValue("#pos-qty")) === "0,05", "Erste Position: „Schon auf dem Konto“ mit 0,05 BTC vorgeschlagen");
+  await fill(pc, "#pos-paid", "4.000");
+  ok(/Kaufpreis 80\.000 USDT/.test(await pc.textContent("#pos-prev")), "Vorschau: Kaufpreis 80.000 USDT");
+  await pc.click("#pos-save");
+  await pc.waitForSelector(".modal", { state: "detached", timeout: 3000 });
+  await pc.waitForTimeout(250);
+  ok((await pc.textContent(btcCard)).includes("+" + pctTxt(P / 80000 - 1)), "Übersicht: +" + pctTxt(P / 80000 - 1) + " für Position 1");
+  const noModal = async (pg) => { if (await pg.$(".modal")) { await pg.keyboard.press("Escape"); await pg.waitForSelector(".modal", { state: "detached", timeout: 3000 }); } };
+  const openLedger = async () => {
     await closeToasts(pc);
+    await noModal(pc);
+    await pc.goto(BASE + "#konten");
+    await pc.click('.acc-row:has-text("Ledger")');
+    await pc.waitForSelector(".pos-sec");
   };
-  await transfer("Binance", "Ledger", "1.000", "0,01");
-  const txt2 = await pc.textContent(btcCard);
-  ok(txt2.includes("0,06 BTC") && txt2.includes("83.333 USDT") && /1 Kauf/.test(txt2), "Kauf per Umbuchung → 0,06 BTC, Ø 83.333 USDT");
-  await transfer("Ledger", "Binance", "0,03", "2.700");
-  const txt3 = await pc.textContent(btcCard);
-  ok(txt3.includes("0,03 BTC") && txt3.includes("83.333 USDT") && txt3.includes("realisiert +200,00 USDT"), "Verkauf → Ø bleibt 83.333 USDT, realisiert +200,00 USDT");
-  if (process.env.KS_SHOTS) { await pc.$eval(".coins-panel", (e) => e.scrollIntoView()); await pc.waitForTimeout(300); await pc.screenshot({ path: path.join(root, "test", "shots", "coins.png") }); }
-  await pc.goto(BASE + "#konten");
-  ok(/Ø Kaufpreis 83\.333 USDT/.test(await pc.textContent(".coin-line[data-cur=\"BTC\"]")), "Konten-Seite zeigt Ø-Kaufpreis und Gewinn");
-  if (process.env.KS_SHOTS) { await pc.waitForTimeout(300); await pc.screenshot({ path: path.join(root, "test", "shots", "coins-konten.png") }); }
-  await pc.click(".coin-line[data-cur=\"BTC\"]");
-  await pc.waitForSelector("#cost-amt");
-  await seg(pc, "cost-mode", "price");
-  ok((await pc.inputValue("#cost-amt")) === "83333,33", "Umschalten auf „Preis pro 1 BTC“ rechnet den Betrag um");
-  await fill(pc, "#cost-amt", "70.000");
-  await pc.click("#cost-save");
-  await pc.waitForTimeout(400);
-  ok(/Ø Kaufpreis 70\.000 USDT/.test(await pc.textContent(".coin-line[data-cur=\"BTC\"]")), "Neuer Ø-Kaufpreis 70.000 USDT gespeichert");
-  await pc.click(".coin-line[data-cur=\"BTC\"]");
-  await pc.waitForSelector("#cost-amt");
-  await pc.click('.modal [data-act="cost-remove"]');
-  await pc.waitForTimeout(400);
-  ok(/Einkaufspreis eintragen/.test(await pc.textContent(".coin-line[data-cur=\"BTC\"]")), "Einkaufspreis entfernt");
+  const addPos = async (o) => {
+    await pc.click('.pos-sec [data-act="pos-new"]');
+    await pc.waitForSelector("#pos-qty");
+    await fill(pc, "#pos-qty", o.qty);
+    await pc.selectOption("#pos-pay", o.pay ? await pc.$eval("#pos-pay", (sel, n) => Array.from(sel.options).find((x) => x.textContent.startsWith(n)).value, o.pay) : "");
+    if (o.quote) await seg(pc, "pos-q", o.quote);
+    await fill(pc, "#pos-paid", o.paid);
+    await pc.click("#pos-save");
+    await pc.waitForSelector(".pos-sec", { timeout: 3000 });
+    await pc.waitForTimeout(250);
+  };
+  const bal = async (name) => { await noModal(pc); await pc.goto(BASE + "#konten"); return pc.textContent('.acc-row:has-text("' + name + '") .bal .n'); };
+  await openLedger();
+  await pc.click('.pos-sec [data-act="pos-new"]');
+  await pc.waitForSelector("#pos-qty");
+  ok((await pc.getAttribute('[data-seg="pos-mode"] [aria-pressed="true"]', "data-seg-val")) === "buy", "Zweite Position: „Neu gekauft“ vorausgewählt");
+  await pc.click('.modal [data-act="account-detail"]');
+  await pc.waitForSelector(".pos-sec");
+  await addPos({ qty: "0,01", pay: "Binance", paid: "1.000" });
+  const det2 = await pc.textContent(".modal");
+  ok((await pc.$$(".pos-row")).length === 2 && det2.includes(pctTxt(P / 100000 - 1)) && det2.includes("83.333 USDT"), "Position 2 einzeln (" + pctTxt(P / 100000 - 1) + "), Konto gesamt Ø 83.333 USDT");
+  ok(/0,06 BTC/.test(await bal("Ledger")) && /1\.000,00 USDT/.test(await bal("Binance")), "Nachkauf: Ledger 0,06 BTC, Binance −1.000 USDT");
+  await openLedger();
+  await addPos({ qty: "0,02", pay: "", quote: "EUR", paid: "1.200" });
+  ok((await pc.textContent(".pos-rows")).includes("+" + pctTxt(75737.64 / 60000 - 1)) && /0,08 BTC/.test(await bal("Ledger")), "Position 3 in Euro ohne Zahlkonto: +" + pctTxt(75737.64 / 60000 - 1) + ", Ledger 0,08 BTC");
+  // Kauf über das normale Buchungsformular (Umbuchung USDT → BTC) wird als Position geführt
+  await noModal(pc);
+  await pc.goto(BASE + "#uebersicht");
+  await pc.click('.quick [data-kind="transfer"]');
+  await pc.waitForSelector("#tx-amt");
+  const pickAcc = async (sel, name) => pc.selectOption(sel, await pc.$$eval(sel + " option", (os, n) => os.find((o) => o.textContent.startsWith(n)).value, name));
+  await pickAcc("#tx-acc", "Binance");
+  await pickAcc("#tx-to", "Ledger");
+  ok((await pc.isVisible("#tx-pos-wrap")) && (await pc.isChecked("#tx-pos")), "Umbuchung USDT → BTC: „Als neue Position führen“ angehakt");
+  await fill(pc, "#tx-amt", "500");
+  await fill(pc, "#tx-toamt", "0,005");
+  await pc.click("#tx-save");
+  await pc.waitForSelector(".modal", { state: "detached", timeout: 3000 });
+  await openLedger();
+  ok((await pc.$$(".pos-row")).length === 4, "Umbuchung als Position 4 übernommen");
+  // Verkauf: die ältesten Positionen werden zuerst abgebaut
+  await noModal(pc);
+  await pc.goto(BASE + "#uebersicht");
+  await pc.click('.quick [data-kind="transfer"]');
+  await pc.waitForSelector("#tx-amt");
+  await pickAcc("#tx-acc", "Ledger");
+  await pickAcc("#tx-to", "Binance");
+  ok(!(await pc.isVisible("#tx-pos-wrap")), "Verkauf BTC → USDT: keine neue Position");
+  await fill(pc, "#tx-amt", "0,06");
+  await fill(pc, "#tx-toamt", "5.400");
+  await pc.click("#tx-save");
+  await pc.waitForSelector(".modal", { state: "detached", timeout: 3000 });
+  await openLedger();
+  ok((await pc.$$(".pos-row.closed")).length === 2 && (await pc.$$(".pos-row:not(.closed)")).length === 2, "Verkauf 0,06 BTC: Position 1 und 2 verkauft, 3 und 4 offen");
+  if (process.env.KS_SHOTS) { await pc.waitForTimeout(500); await pc.$eval(".pos-sec", (e) => e.scrollIntoView()); await pc.screenshot({ path: path.join(root, "test", "shots", "positions.png") }); }
+  await pc.click('.pos-row:has(.pos-n:text-is("4"))');
+  await pc.waitForSelector("#pos-qty");
+  await pc.click('.modal [data-act="pos-delete"]');
+  await pc.waitForSelector(".pos-sec");
+  ok((await pc.$$(".pos-row")).length === 3 && /0,02 BTC/.test(await bal("Ledger")) && /6\.400,00 USDT/.test(await bal("Binance")), "Position 4 gelöscht → Kauf-Buchung zurückgenommen");
+  await pc.goto(BASE + "#uebersicht");
+  if (process.env.KS_SHOTS) { await pc.$eval(".coins-panel", (e) => e.scrollIntoView()); await pc.waitForTimeout(300); await pc.screenshot({ path: path.join(root, "test", "shots", "positions-overview.png") }); }
+  ok(/1 Position/.test(await pc.textContent(btcCard)), "Übersicht zählt offene Positionen");
   await cc.close();
+
+  // Einkaufspreis aus Version 1.4.0 wird zu einer Position
+  const cm = await phoneContext(browser);
+  await mockRates(cm);
+  const pm = await cm.newPage();
+  watchErrors(pm, errors);
+  await pm.goto(BASE);
+  await pm.click('[data-act="start-empty"]');
+  await newAcc(pm, "Wallet", "BTC", "0,05");
+  await pm.evaluate(() => new Promise((res, rej) => {
+    const r = indexedDB.open("kassensturz");
+    r.onsuccess = () => {
+      const db = r.result;
+      const t = db.transaction("meta", "readwrite");
+      t.objectStore("meta").put({ id: "cost", BTC: { qty: 0.05, paid: 4000, quote: "USDT", at: Date.now() } });
+      t.oncomplete = () => { db.close(); res(); };
+      t.onerror = () => rej(t.error);
+    };
+    r.onerror = () => rej(r.error);
+  }));
+  await pm.reload();
+  await pm.waitForSelector(".coins-panel");
+  await pm.waitForTimeout(400);
+  ok((await pm.textContent(".coins-panel")).includes("+" + pctTxt(P / 80000 - 1)) && /1 Position/.test(await pm.textContent(".coins-panel")), "Einkaufspreis aus 1.4.0 als Position übernommen");
+  await cm.close();
 
   /* ---------------- 14. Kursquellen ---------------- */
   step("Kursquellen");

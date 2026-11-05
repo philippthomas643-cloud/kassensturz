@@ -501,7 +501,7 @@ VIEWS.konten = function () {
     if (!list.length) continue;
     const g = d.byCur[c];
     h += '<section class="panel c12"><div class="group-h" style="padding:0 0 4px"><span class="gt"><span class="sw" style="background:' + CUR[c].color + '"></span>' + CUR[c].name + " · " + c + "</span>" +
-      '<span class="gv"><b>' + fmtAmt(g.native, c) + "</b>" + (c !== "EUR" ? " · " + (g.eur == null ? "Kurs fehlt" : "≈ " + fmtEUR(g.eur)) : "") + (c === "BTC" ? " · " + fmtSats(g.native) : "") + "</span></div>" +
+      '<span class="gv"><b>' + fmtAmt(g.native, c) + "</b>" + (c !== "EUR" ? " · " + (g.eur == null ? "Kurs fehlt" : "≈ " + fmtEUR(g.eur)) : "") + "</span></div>" +
       (COINS.includes(c) ? coinLineHtml(c) : "") +
       '<div class="rows">' + list.map(accRowFull).join("") + "</div></section>";
   }
@@ -517,8 +517,8 @@ function accRowFull(a) {
   const e = toEUR(b, a.currency);
   const n = derive().txCount.get(a.id) || 0;
   return '<div class="row acc-row clickable" data-act="account-detail" data-id="' + esc(a.id) + '" role="button" tabindex="0">' + avatarHtml(a.currency) + '<div><div class="t">' + esc(a.name) + demoTag(a) + (a.archived ? '<span class="tag">archiviert</span>' : "") + (a.includeInTotal === false ? '<span class="tag">nicht in Summe</span>' : "") + "</div>" +
-    '<div class="sub">' + (ACC_KINDS[a.kind] || "Konto") + " · " + n + (n === 1 ? " Buchung" : " Buchungen") + (a.note ? " · " + esc(a.note) : "") + "</div></div>" +
-    '<div class="bal"><div class="n">' + fmtAmt(b, a.currency) + "</div>" + (a.currency !== "EUR" ? '<div class="e">' + (e == null ? "Kurs fehlt" : "≈ " + fmtEUR(e)) + "</div>" : "") + (a.currency === "BTC" ? '<div class="e">' + fmtSats(b) + "</div>" : "") + "</div>" +
+    '<div class="sub">' + (ACC_KINDS[a.kind] || "Konto") + " · " + n + (n === 1 ? " Buchung" : " Buchungen") + (a.note ? " · " + esc(a.note) : "") + (COINS.includes(a.currency) ? accPosSub(a) : "") + "</div></div>" +
+    '<div class="bal"><div class="n">' + fmtAmt(b, a.currency) + "</div>" + (a.currency !== "EUR" ? '<div class="e">' + (e == null ? "Kurs fehlt" : "≈ " + fmtEUR(e)) + "</div>" : "") + "" + "</div>" +
     '<div class="row-actions hide-phone">' +
     '<button class="btn btn-sm" type="button" data-act="adjust-balance" data-id="' + esc(a.id) + '">' + icon("adjust", "sm") + "Kontostand</button>" +
     '<button class="icon-btn" type="button" data-act="new-tx" data-acc="' + esc(a.id) + '" aria-label="Buchung für ' + esc(a.name) + '" title="Buchung erfassen">' + icon("plus") + "</button>" +
@@ -529,7 +529,7 @@ function accRowFull(a) {
 /* ---------- Buchungen ---------- */
 function txTitle(t) {
   if (t.kind === "transfer") return t.note ? esc(t.note) : "Umbuchung";
-  if (t.kind === "adjust") return "Kontostand angepasst";
+  if (t.kind === "adjust") return t.posId ? esc(t.note || "Kauf") : "Kontostand angepasst";
   return esc(t.note || t.category || (t.kind === "income" ? "Einnahme" : "Ausgabe"));
 }
 function txRow(t, compact) {

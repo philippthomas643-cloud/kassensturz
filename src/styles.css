@@ -770,3 +770,17 @@ table.data th { position: sticky; top: 0; background: var(--panel-2); font-weigh
 .cost-prev b.pos, .coin .pos, .coin-line .pos { color: var(--pos); }
 .cost-prev b.neg, .coin .neg, .coin-line .neg { color: var(--neg); }
 @media (max-width: 360px) { .coin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .coin-stat:last-child { grid-column: 1 / -1; } }
+
+/* Positionen im Coin-Konto */
+.pos-sec { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pos-sec .btn { margin: -4px 0; }
+.coin.pos-total { margin-top: 2px; }
+.pos-total .glyph { color: var(--btc); background: color-mix(in srgb, var(--btc) 13%, var(--panel)); }
+.pos-rows .row .sub.pos, .row .sub .pos { color: var(--pos); }
+.pos-rows .row .sub.neg, .row .sub .neg { color: var(--neg); }
+.pos-n { font-weight: 680; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.pos-row.closed { opacity: .55; }
+.pos-free .glyph { color: var(--ink-3); }
+.pos-free .t { font-weight: 600; }
+.coin-note svg:last-child:not(:first-child) { margin-left: auto; }
+.coin.clickable .coin-note { align-items: center; }

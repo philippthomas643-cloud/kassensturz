@@ -35,10 +35,11 @@ const ROUTES = [
   { id: "budget", label: "Budget", icon: "pie" },
   { id: "ziele", label: "Ziele", icon: "flag" },
 ];
-const COLS = ["accounts", "tx", "fixed", "budgets", "goals", "snaps", "meta"];
+const COLS = ["accounts", "tx", "fixed", "budgets", "goals", "snaps", "meta", "positions"];
 
 /* ---------- Icons ---------- */
 const ICONS = {
+  layers: '<path d="m12 3.5 8.5 4.5-8.5 4.5L3.5 8 12 3.5Z"/><path d="m3.5 12 8.5 4.5 8.5-4.5"/><path d="m3.5 16 8.5 4.5 8.5-4.5"/>',
   grid: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/>',
   wallet: '<path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3"/><path d="M4 7.5V18a2 2 0 0 0 2 2h13a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H6.5A2.5 2.5 0 0 1 4 7.5Z"/><circle cx="16.3" cy="14.5" r="1.1"/>',
   swapv: '<path d="M8 20V5M8 5 4.5 8.5M8 5l3.5 3.5"/><path d="M16 4v15M16 19l-3.5-3.5M16 19l3.5-3.5"/>',
@@ -257,7 +258,7 @@ function setUiPref(key, value) {
 const S = {
   runtime: "pending", // pending | ok | error
   bootError: "",
-  data: { accounts: new Map(), tx: new Map(), fixed: new Map(), budgets: new Map(), goals: new Map(), snaps: new Map(), meta: new Map() },
+  data: { accounts: new Map(), tx: new Map(), fixed: new Map(), budgets: new Map(), goals: new Map(), snaps: new Map(), meta: new Map(), positions: new Map() },
   loaded: {},
   errors: {},
   live: { state: "idle", rates: null, at: 0, msg: "", busy: false, src: "" },

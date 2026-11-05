@@ -1,13 +1,13 @@
 /* ======================================================================
    Lokaler Speicher: IndexedDB „kassensturz“, ein Objektspeicher je Sammlung
-   (accounts, tx, fixed, budgets, goals, snaps, meta). Jedes Dokument hat ein
+   (accounts, tx, fixed, budgets, goals, snaps, meta, positions). Jedes Dokument hat ein
    Feld „id“. Alles bleibt auf diesem Gerät – es gibt keinen Server.
 
    Neue Sammlung oder Index? → IDB_VERSION erhöhen und in onupgradeneeded
    ergänzen. Bestehende Daten nie löschen, nur ergänzen (siehe CLAUDE.md).
    ====================================================================== */
 const IDB_NAME = "kassensturz";
-const IDB_VERSION = 1;
+const IDB_VERSION = 2; // 2: Sammlung „positions“
 let IDB = null;
 const CHANNEL = typeof BroadcastChannel === "function" ? new BroadcastChannel("kassensturz") : null;
 

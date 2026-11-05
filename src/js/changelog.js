@@ -4,6 +4,17 @@
    ====================================================================== */
 const CHANGELOG = [
   {
+    v: "1.5.0",
+    date: "2026-11-05",
+    items: [
+      "Neu: Positionen im BTC-Konto – kaufst du später nach, legst du einfach eine weitere Position an, statt ein neues Konto",
+      "Jede Position hat ihren eigenen Kaufpreis und Gewinn/Verlust, dazu die Summe fürs ganze Konto",
+      "Nachkauf direkt mit Abbuchung vom USDT- oder Euro-Konto; eine Umbuchung USDT → BTC wird auf Wunsch automatisch zur Position",
+      "Bei Verkäufen werden die ältesten Positionen zuerst abgebaut. Dein bisheriger Einkaufspreis wurde als erste Position übernommen",
+      "BTC-Beträge werden in BTC angezeigt statt zusätzlich in Satoshi",
+    ],
+  },
+  {
     v: "1.4.0",
     date: "2026-10-13",
     items: [
